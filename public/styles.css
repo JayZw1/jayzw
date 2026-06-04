@@ -232,6 +232,7 @@ button:hover {
   gap: 4px;
   max-width: min(76%, 480px);
   position: relative;
+  width: fit-content;
 }
 
 .message.mine {
@@ -259,9 +260,11 @@ button:hover {
   border-radius: 8px;
   background: var(--bubble);
   line-height: 1.5;
+  max-width: 100%;
   overflow-wrap: anywhere;
   padding: 10px 12px;
   white-space: pre-wrap;
+  width: fit-content;
 }
 
 .mine .bubble {
