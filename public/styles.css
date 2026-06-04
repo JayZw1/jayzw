@@ -200,18 +200,22 @@ button:hover {
 }
 
 .today-badge {
-  display: grid;
-  gap: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   color: var(--muted);
   font-size: 12px;
-  line-height: 1.2;
-  min-width: 118px;
+  line-height: 1;
+  min-width: 220px;
   text-align: center;
+  white-space: nowrap;
 }
 
 .today-badge strong {
   color: var(--text);
   font-size: 12px;
+  font-weight: 700;
 }
 
 .today-badge small {
@@ -751,6 +755,7 @@ button:hover {
     grid-column: 1 / -1;
     justify-self: center;
     font-size: 11px;
+    min-width: 0;
   }
 
   .chat-header p {
