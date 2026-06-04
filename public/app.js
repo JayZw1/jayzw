@@ -31,8 +31,11 @@ const stickerSearchInput = document.querySelector("#stickerSearchInput");
 const contextMenu = document.querySelector("#contextMenu");
 const statusText = document.querySelector("#statusText");
 const logoutButton = document.querySelector("#logoutButton");
+const clearHistoryButton = document.querySelector("#clearHistoryButton");
 const audioCallButton = document.querySelector("#audioCallButton");
 const videoCallButton = document.querySelector("#videoCallButton");
+const callMenuButton = document.querySelector("#callMenuButton");
+const callMenu = document.querySelector("#callMenu");
 const callPanel = document.querySelector("#callPanel");
 const callStatus = document.querySelector("#callStatus");
 const localVideo = document.querySelector("#localVideo");
@@ -292,6 +295,10 @@ function closeEmojiPanel() {
   emojiPanel.classList.add("hidden");
 }
 
+function closeCallMenu() {
+  callMenu?.classList.add("hidden");
+}
+
 function setEmojiTab(tabName) {
   for (const button of emojiPanel.querySelectorAll("[data-emoji-tab]")) {
     button.classList.toggle("active", button.dataset.emojiTab === tabName);
@@ -376,6 +383,11 @@ function createPeerConnection() {
   };
   pc.ontrack = (event) => {
     remoteVideo.srcObject = event.streams[0];
+    remoteVideo.muted = false;
+    remoteVideo.volume = 1;
+    remoteVideo.play().catch(() => {
+      callStatus.textContent = "已接通，点击画面可开启声音";
+    });
   };
   pc.onconnectionstatechange = () => {
     if (["failed", "disconnected", "closed"].includes(pc.connectionState)) {
@@ -397,10 +409,16 @@ async function startCall(mode) {
   acceptCallButton.classList.add("hidden");
   callStatus.textContent = mode === "video" ? "正在发起视频通话..." : "正在发起语音通话...";
 
-  localStream = await navigator.mediaDevices.getUserMedia({
-    audio: true,
-    video: mode === "video",
-  });
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: mode === "video",
+    });
+  } catch {
+    callStatus.textContent = "请允许麦克风/摄像头权限后再试";
+    setTimeout(() => endCall(false), 1400);
+    return;
+  }
   localVideo.srcObject = localStream;
   peerConnection = createPeerConnection();
   localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
@@ -422,10 +440,16 @@ async function acceptCall() {
   acceptCallButton.classList.add("hidden");
   callStatus.textContent = mode === "video" ? "视频通话中" : "语音通话中";
 
-  localStream = await navigator.mediaDevices.getUserMedia({
-    audio: true,
-    video: mode === "video",
-  });
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: mode === "video",
+    });
+  } catch {
+    callStatus.textContent = "请允许麦克风/摄像头权限后再接听";
+    setTimeout(() => endCall(false), 1400);
+    return;
+  }
   localVideo.srcObject = localStream;
   peerConnection = createPeerConnection();
   localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
@@ -446,6 +470,12 @@ function receiveCall({ from, mode, offer }) {
   callPanel.classList.remove("hidden");
   acceptCallButton.classList.remove("hidden");
   callStatus.textContent = `${from.displayName} 邀请你${mode === "video" ? "视频通话" : "语音通话"}`;
+  if ("Notification" in window && Notification.permission === "granted") {
+    new Notification("碎碎念收件箱", {
+      body: mode === "video" ? "收到视频通话邀请" : "收到语音通话邀请",
+      tag: "private-chat-call",
+    });
+  }
 }
 
 async function applyAnswer({ answer }) {
@@ -550,6 +580,10 @@ function connectSocket() {
     statusText.textContent = "连接已断开，正在重连...";
   });
 
+  state.socket.on("connect_error", () => {
+    statusText.textContent = "实时连接失败，文字消息仍可发送";
+  });
+
   state.socket.on("presence", ({ online }) => {
     statusText.textContent = online >= 2 ? "你们都在线" : "已连接";
   });
@@ -560,6 +594,10 @@ function connectSocket() {
   });
   state.socket.on("message:recalled", replaceMessage);
   state.socket.on("message:deleted", ({ id }) => removeMessage(id));
+  state.socket.on("messages:cleared", () => {
+    messagesEl.innerHTML = "";
+    statusText.textContent = "聊天记录已清空";
+  });
   state.socket.on("call:offer", receiveCall);
   state.socket.on("call:answer", applyAnswer);
   state.socket.on("call:ice", applyIce);
@@ -619,11 +657,11 @@ loginForm.addEventListener("submit", async (event) => {
   connectSocket();
 });
 
-messageForm.addEventListener("submit", (event) => {
+messageForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const body = messageInput.value.trim();
 
-  if ((!body && !state.attachment) || !state.socket?.connected) {
+  if (!body && !state.attachment) {
     return;
   }
 
@@ -633,14 +671,39 @@ messageForm.addEventListener("submit", (event) => {
   clearAttachment();
   clearQuote();
   closeEmojiPanel();
-  state.socket.emit("message:send", { body, attachment, quote }, (result) => {
+  closeCallMenu();
+  const payload = { body, attachment, quote };
+  const restoreDraft = (error) => {
+    messageInput.value = body;
+    state.attachment = attachment;
+    state.quote = quote;
+    updateAttachmentPreview();
+    updateReplyPreview();
+    statusText.textContent = error || "发送失败。";
+  };
+
+  if (!state.socket?.connected) {
+    try {
+      const response = await api("/api/messages", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "发送失败。");
+      }
+      renderMessage(data.message);
+      statusText.textContent = "已发送，实时连接恢复后会自动同步";
+    } catch (error) {
+      restoreDraft(error.message);
+    }
+    return;
+  }
+
+  state.socket.emit("message:send", payload, (result) => {
     if (!result?.ok) {
-      messageInput.value = body;
-      state.attachment = attachment;
-      state.quote = quote;
-      updateAttachmentPreview();
-      updateReplyPreview();
-      statusText.textContent = result?.error || "发送失败。";
+      restoreDraft(result?.error || "发送失败。");
     }
   });
 });
@@ -688,15 +751,25 @@ document.addEventListener("click", (event) => {
   ) {
     closeEmojiPanel();
   }
+  if (
+    callMenu &&
+    !callMenu.classList.contains("hidden") &&
+    !callMenu.contains(event.target) &&
+    event.target !== callMenuButton
+  ) {
+    closeCallMenu();
+  }
 });
 
 attachButton.addEventListener("click", () => {
   closeEmojiPanel();
+  closeCallMenu();
   fileInput.click();
 });
 
 emojiButton.addEventListener("click", () => {
   closeContextMenu();
+  closeCallMenu();
   emojiPanel.classList.toggle("hidden");
 });
 
@@ -715,10 +788,46 @@ stickerSearchForm?.addEventListener("submit", (event) => {
   event.preventDefault();
   loadSticker();
 });
-audioCallButton?.addEventListener("click", () => startCall("audio"));
-videoCallButton?.addEventListener("click", () => startCall("video"));
+callMenuButton?.addEventListener("click", () => {
+  closeContextMenu();
+  closeEmojiPanel();
+  callMenu.classList.toggle("hidden");
+});
+audioCallButton?.addEventListener("click", () => {
+  closeCallMenu();
+  startCall("audio");
+});
+videoCallButton?.addEventListener("click", () => {
+  closeCallMenu();
+  startCall("video");
+});
 acceptCallButton?.addEventListener("click", acceptCall);
 endCallButton?.addEventListener("click", () => endCall(true));
+
+clearHistoryButton?.addEventListener("click", async () => {
+  const password = window.prompt("请输入确认密码，清空后不可恢复。");
+
+  if (!password) {
+    return;
+  }
+
+  try {
+    const response = await api("/api/messages/clear", {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "清空失败。");
+    }
+
+    messagesEl.innerHTML = "";
+    statusText.textContent = "聊天记录已清空";
+  } catch (error) {
+    statusText.textContent = error.message;
+  }
+});
 
 fileInput.addEventListener("change", async () => {
   const file = fileInput.files?.[0];

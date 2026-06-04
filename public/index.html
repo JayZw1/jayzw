@@ -35,8 +35,7 @@
             <p id="statusText">正在连接...</p>
           </div>
           <div class="header-actions">
-            <button class="ghost icon-control" id="audioCallButton" type="button" title="语音通话">☎</button>
-            <button class="ghost icon-control" id="videoCallButton" type="button" title="视频通话">▣</button>
+            <button class="ghost icon-control danger-control" id="clearHistoryButton" type="button" title="清空聊天记录">清</button>
             <button class="ghost" id="logoutButton" type="button">退出</button>
           </div>
         </header>
@@ -48,8 +47,13 @@
           <input class="file-input" id="fileInput" type="file" />
           <button class="attach-button" id="attachButton" type="button" title="添加附件">+</button>
           <textarea id="messageInput" placeholder="输入消息..." maxlength="1000" rows="1"></textarea>
+          <button class="call-button" id="callMenuButton" type="button" title="通话">📱</button>
           <button class="emoji-button" id="emojiButton" type="button" title="表情">☺</button>
           <div class="attachment-preview hidden" id="attachmentPreview"></div>
+          <div class="call-menu hidden" id="callMenu">
+            <button type="button" id="audioCallButton">☎ 语音通话</button>
+            <button type="button" id="videoCallButton">📱 视频通话</button>
+          </div>
           <div class="emoji-panel hidden" id="emojiPanel">
             <div class="emoji-tabs">
               <button class="active" type="button" data-emoji-tab="emoji">表情</button>

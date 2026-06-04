@@ -14,6 +14,7 @@ const PORT = Number(process.env.PORT || 8080);
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 const TOKEN_MAX_AGE = "30d";
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+const CLEAR_HISTORY_PASSWORD = process.env.CLEAR_HISTORY_PASSWORD || "zhangwei020216";
 const STICKER_API_URL =
   process.env.STICKER_API_URL ||
   "https://cn.apihz.cn/api/img/apihzbqb.php?id=88888888&key=88888888&type=2&words={query}&limit=8";
@@ -111,6 +112,46 @@ app.get("/api/messages", requireAuth, async (req, res) => {
   const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 200);
   const messages = await store.listMessages(req.user.id, limit);
   res.json({ messages });
+});
+
+app.post("/api/messages", requireAuth, async (req, res) => {
+  const body = String(req.body?.body || "").trim();
+  let attachment = null;
+  const quote = cleanQuote(req.body?.quote);
+
+  try {
+    attachment = cleanAttachment(req.body?.attachment);
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+
+  if ((!body && !attachment) || body.length > 1000) {
+    return res.status(400).json({ error: "消息或附件不能为空，文字最多 1000 字。" });
+  }
+
+  try {
+    const message = await store.createMessage(req.user, body, attachment, quote);
+    io.emit("message:new", message);
+    res.json({ message });
+  } catch {
+    res.status(500).json({ error: "发送失败，请稍后再试。" });
+  }
+});
+
+app.post("/api/messages/clear", requireAuth, async (req, res) => {
+  const password = String(req.body?.password || "");
+
+  if (password !== CLEAR_HISTORY_PASSWORD) {
+    return res.status(403).json({ error: "确认密码不正确。" });
+  }
+
+  try {
+    await store.clearAllMessages();
+    io.emit("messages:cleared");
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "清空失败，请稍后再试。" });
+  }
 });
 
 app.get("/api/sticker", requireAuth, async (req, res) => {

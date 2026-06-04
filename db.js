@@ -96,6 +96,10 @@ function createSqliteStore(databasePath) {
     INSERT OR IGNORE INTO message_deletions (message_id, user_id)
     VALUES (?, ?)
   `);
+  const clearAllMessages = db.transaction(() => {
+    db.prepare("DELETE FROM message_deletions").run();
+    db.prepare("DELETE FROM messages").run();
+  });
 
   return {
     async init() {},
@@ -123,6 +127,9 @@ function createSqliteStore(databasePath) {
     async deleteMessage(user, messageId) {
       deleteMessage.run(messageId, user.id);
       return { id: String(messageId), userId: user.id };
+    },
+    async clearAllMessages() {
+      clearAllMessages();
     },
   };
 }
@@ -259,6 +266,10 @@ function createPostgresStore(databaseUrl) {
         [messageId, user.id]
       );
       return { id: String(messageId), userId: user.id };
+    },
+    async clearAllMessages() {
+      await pool.query("DELETE FROM message_deletions");
+      await pool.query("DELETE FROM messages");
     },
   };
 }
