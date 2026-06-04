@@ -21,10 +21,16 @@ const attachmentPreview = document.querySelector("#attachmentPreview");
 const replyPreview = document.querySelector("#replyPreview");
 const emojiButton = document.querySelector("#emojiButton");
 const emojiPanel = document.querySelector("#emojiPanel");
+const emojiGrid = document.querySelector("#emojiGrid");
+const stickerPane = document.querySelector("#stickerPane");
+const stickerPreview = document.querySelector("#stickerPreview");
+const refreshStickerButton = document.querySelector("#refreshStickerButton");
+const sendStickerButton = document.querySelector("#sendStickerButton");
 const contextMenu = document.querySelector("#contextMenu");
 const statusText = document.querySelector("#statusText");
 const logoutButton = document.querySelector("#logoutButton");
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+let currentSticker = null;
 const EMOJIS = [
   "😀",
   "😄",
@@ -86,6 +92,7 @@ function showLogin() {
 function showChat() {
   loginPanel.classList.add("hidden");
   chatPanel.classList.remove("hidden");
+  requestNotificationPermission();
 }
 
 function formatTime(value) {
@@ -247,13 +254,13 @@ function clearQuote() {
 }
 
 function renderEmojiPanel() {
-  emojiPanel.innerHTML = "";
+  emojiGrid.innerHTML = "";
   for (const emoji of EMOJIS) {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = emoji;
     button.addEventListener("click", () => insertEmoji(emoji));
-    emojiPanel.append(button);
+    emojiGrid.append(button);
   }
 }
 
@@ -268,6 +275,77 @@ function insertEmoji(emoji) {
 
 function closeEmojiPanel() {
   emojiPanel.classList.add("hidden");
+}
+
+function setEmojiTab(tabName) {
+  for (const button of emojiPanel.querySelectorAll("[data-emoji-tab]")) {
+    button.classList.toggle("active", button.dataset.emojiTab === tabName);
+  }
+  emojiGrid.classList.toggle("hidden", tabName !== "emoji");
+  stickerPane.classList.toggle("hidden", tabName !== "sticker");
+}
+
+async function loadSticker() {
+  stickerPreview.textContent = "正在获取表情包...";
+  currentSticker = null;
+
+  try {
+    const response = await api("/api/sticker");
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "表情包接口暂时不可用。");
+    }
+
+    currentSticker = data;
+    stickerPreview.innerHTML = "";
+    const image = document.createElement("img");
+    image.alt = data.name || "表情包";
+    image.src = data.data;
+    stickerPreview.append(image);
+  } catch (error) {
+    stickerPreview.textContent = error.message;
+  }
+}
+
+function sendSticker() {
+  if (!currentSticker || !state.socket?.connected) {
+    return;
+  }
+
+  const attachment = currentSticker;
+  currentSticker = null;
+  stickerPreview.textContent = "点击“换一张”获取表情包";
+  closeEmojiPanel();
+  state.socket.emit("message:send", { body: "", attachment }, (result) => {
+    if (!result?.ok) {
+      statusText.textContent = result?.error || "表情包发送失败。";
+      currentSticker = attachment;
+    }
+  });
+}
+
+function requestNotificationPermission() {
+  if (!("Notification" in window) || Notification.permission !== "default") {
+    return;
+  }
+
+  Notification.requestPermission().catch(() => {});
+}
+
+function notifyIncomingMessage(message) {
+  if (
+    message.senderId === state.user?.id ||
+    !("Notification" in window) ||
+    Notification.permission !== "granted"
+  ) {
+    return;
+  }
+
+  new Notification("碎碎念收件箱", {
+    body: "收到一条新消息",
+    tag: "private-chat-message",
+  });
 }
 
 function scrollToMessage(messageId) {
@@ -337,7 +415,10 @@ function connectSocket() {
     statusText.textContent = online >= 2 ? "你们都在线" : "已连接";
   });
 
-  state.socket.on("message:new", renderMessage);
+  state.socket.on("message:new", (message) => {
+    renderMessage(message);
+    notifyIncomingMessage(message);
+  });
   state.socket.on("message:recalled", replaceMessage);
   state.socket.on("message:deleted", ({ id }) => removeMessage(id));
 }
@@ -476,6 +557,18 @@ emojiButton.addEventListener("click", () => {
   emojiPanel.classList.toggle("hidden");
 });
 
+emojiPanel.addEventListener("click", (event) => {
+  const tabButton = event.target.closest("[data-emoji-tab]");
+  if (!tabButton) {
+    return;
+  }
+
+  setEmojiTab(tabButton.dataset.emojiTab);
+});
+
+refreshStickerButton.addEventListener("click", loadSticker);
+sendStickerButton.addEventListener("click", sendSticker);
+
 fileInput.addEventListener("change", async () => {
   const file = fileInput.files?.[0];
 
@@ -534,4 +627,5 @@ function clearAttachment() {
 }
 
 renderEmojiPanel();
+setEmojiTab("emoji");
 boot();

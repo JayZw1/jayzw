@@ -26,3 +26,5 @@ services:
         sync: false
       - key: CHAT_USER_2_PASSWORD
         sync: false
+      - key: STICKER_API_URL
+        sync: false

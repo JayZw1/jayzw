@@ -14,6 +14,8 @@ const PORT = Number(process.env.PORT || 8080);
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 const TOKEN_MAX_AGE = "30d";
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+const STICKER_API_URL =
+  process.env.STICKER_API_URL || "http://101.35.2.25/api/img/apihzbqbbaidu.php";
 
 const users = [
   {
@@ -108,6 +110,48 @@ app.get("/api/messages", requireAuth, async (req, res) => {
   const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 200);
   const messages = await store.listMessages(req.user.id, limit);
   res.json({ messages });
+});
+
+app.get("/api/sticker", requireAuth, async (req, res) => {
+  try {
+    const response = await fetch(STICKER_API_URL);
+    const contentType = response.headers.get("content-type") || "";
+    let imageResponse = response;
+
+    if (contentType.includes("application/json")) {
+      const data = await response.json();
+      const imageUrl = data.url || data.img || data.image || data.pic || data.data;
+
+      if (!imageUrl || data.code === 400) {
+        return res.status(502).json({ error: data.msg || "表情包接口暂时不可用。" });
+      }
+
+      imageResponse = await fetch(imageUrl);
+    }
+
+    if (!imageResponse.ok) {
+      return res.status(502).json({ error: "表情包接口暂时不可用。" });
+    }
+
+    const imageType = imageResponse.headers.get("content-type") || "image/jpeg";
+    if (!imageType.startsWith("image/")) {
+      return res.status(502).json({ error: "表情包接口没有返回图片。" });
+    }
+
+    const bytes = Buffer.from(await imageResponse.arrayBuffer());
+    if (bytes.length > MAX_ATTACHMENT_BYTES) {
+      return res.status(502).json({ error: "表情包图片超过 5MB。" });
+    }
+
+    const extension = imageType.split("/")[1]?.split(";")[0] || "jpg";
+    res.json({
+      name: `sticker-${Date.now()}.${extension}`,
+      type: imageType,
+      data: `data:${imageType};base64,${bytes.toString("base64")}`,
+    });
+  } catch {
+    res.status(502).json({ error: "表情包接口暂时不可用。" });
+  }
 });
 
 function cleanAttachment(rawAttachment) {

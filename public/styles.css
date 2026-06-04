@@ -373,16 +373,41 @@ button:hover {
 .emoji-panel {
   grid-column: 1 / -1;
   grid-row: 4;
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 6px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
   padding: 10px;
 }
 
-.emoji-panel button {
+.emoji-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.emoji-tabs button,
+.sticker-actions button {
+  height: 34px;
+  border-radius: 6px;
+  background: #f3f4f6;
+  color: var(--text);
+  font-size: 14px;
+  padding: 0;
+}
+
+.emoji-tabs button.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+}
+
+.emoji-grid button {
   height: 36px;
   border-radius: 6px;
   background: #f9fafb;
@@ -391,8 +416,42 @@ button:hover {
   padding: 0;
 }
 
-.emoji-panel button:hover {
+.emoji-grid button:hover,
+.emoji-tabs button:hover,
+.sticker-actions button:hover {
   background: #eef2ff;
+  color: var(--text);
+}
+
+.sticker-pane {
+  display: grid;
+  gap: 10px;
+}
+
+.sticker-preview {
+  display: grid;
+  min-height: 150px;
+  place-items: center;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: #f9fafb;
+  color: var(--muted);
+  font-size: 14px;
+  overflow: hidden;
+  padding: 10px;
+}
+
+.sticker-preview img {
+  max-width: 100%;
+  max-height: 220px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.sticker-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
 .context-menu {
@@ -501,6 +560,11 @@ button:hover {
   }
 
   .emoji-panel {
+    max-height: 40dvh;
+    overflow-y: auto;
+  }
+
+  .emoji-grid {
     grid-template-columns: repeat(7, 1fr);
   }
 

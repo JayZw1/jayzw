@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>两个人的聊天</title>
+    <title>碎碎念收件箱</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -11,7 +11,7 @@
       <section class="login-panel" id="loginPanel">
         <div>
           <p class="eyebrow">Private chat</p>
-          <h1>两个人的聊天</h1>
+          <h1>碎碎念收件箱</h1>
           <p class="muted">只给你们两个人使用的简洁聊天页。</p>
         </div>
         <form id="loginForm" class="login-form">
@@ -31,7 +31,7 @@
       <section class="chat-panel hidden" id="chatPanel">
         <header class="chat-header">
           <div>
-            <h1>两个人的聊天</h1>
+            <h1>碎碎念收件箱</h1>
             <p id="statusText">正在连接...</p>
           </div>
           <button class="ghost" id="logoutButton" type="button">退出</button>
@@ -46,7 +46,20 @@
           <textarea id="messageInput" placeholder="输入消息..." maxlength="1000" rows="1"></textarea>
           <button class="emoji-button" id="emojiButton" type="button" title="表情">☺</button>
           <div class="attachment-preview hidden" id="attachmentPreview"></div>
-          <div class="emoji-panel hidden" id="emojiPanel"></div>
+          <div class="emoji-panel hidden" id="emojiPanel">
+            <div class="emoji-tabs">
+              <button class="active" type="button" data-emoji-tab="emoji">表情</button>
+              <button type="button" data-emoji-tab="sticker">表情包</button>
+            </div>
+            <div class="emoji-grid" id="emojiGrid"></div>
+            <div class="sticker-pane hidden" id="stickerPane">
+              <div class="sticker-preview" id="stickerPreview">点击“换一张”获取表情包</div>
+              <div class="sticker-actions">
+                <button type="button" id="refreshStickerButton">换一张</button>
+                <button type="button" id="sendStickerButton">发送表情包</button>
+              </div>
+            </div>
+          </div>
           <button type="submit">发送</button>
         </form>
       </section>
