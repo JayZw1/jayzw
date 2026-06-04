@@ -56,7 +56,7 @@ app.use(
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
-        connectSrc: ["'self'", "ws:", "wss:"],
+        connectSrc: ["'self'", "https://api.open-meteo.com", "ws:", "wss:"],
       },
     },
   })
