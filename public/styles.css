@@ -202,12 +202,11 @@ button:hover {
 }
 
 .today-badge {
-  display: flex;
-  align-items: center;
+  display: grid;
   gap: 4px;
   color: var(--muted);
   font-size: 12px;
-  line-height: 1;
+  line-height: 1.15;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

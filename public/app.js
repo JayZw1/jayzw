@@ -449,10 +449,10 @@ function renderTodayInfo(today) {
     return;
   }
 
-  todayWeatherText.textContent = today.weather?.label ? `${today.weather.label} ·` : "";
+  todayWeatherText.textContent = today.weather?.label || "";
   todayWeatherText.hidden = !today.weather?.label;
   todayDateText.textContent = today.label || today.date || "";
-  todayFestivalText.textContent = today.festival ? `· ${today.festival}` : "";
+  todayFestivalText.textContent = today.festival || "";
   todayFestivalText.hidden = !today.festival;
   todayBadge.hidden = false;
 
@@ -475,7 +475,7 @@ async function loadBrowserWeather() {
       return;
     }
 
-    todayWeatherText.textContent = `顺德 ${weatherCodeLabel(code)} ${min}/${max}℃ ·`;
+    todayWeatherText.textContent = `顺德 ${weatherCodeLabel(code)} ${min}/${max}℃`;
     todayWeatherText.hidden = false;
   } catch {}
 }
