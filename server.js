@@ -13,6 +13,7 @@ const { createStore } = require("./db");
 const PORT = Number(process.env.PORT || 8080);
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 const TOKEN_MAX_AGE = "30d";
+const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 
 const users = [
   {
@@ -51,7 +52,7 @@ app.use(
     },
   })
 );
-app.use(express.json({ limit: "32kb" }));
+app.use(express.json({ limit: "8mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
 function publicUser(user) {
@@ -105,9 +106,31 @@ app.get("/api/me", requireAuth, (req, res) => {
 
 app.get("/api/messages", requireAuth, async (req, res) => {
   const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 200);
-  const messages = await store.listMessages(limit);
+  const messages = await store.listMessages(req.user.id, limit);
   res.json({ messages });
 });
+
+function cleanAttachment(rawAttachment) {
+  if (!rawAttachment) {
+    return null;
+  }
+
+  const name = String(rawAttachment.name || "").trim().slice(0, 160);
+  const type = String(rawAttachment.type || "application/octet-stream").trim().slice(0, 120);
+  const data = String(rawAttachment.data || "");
+  const match = data.match(/^data:([^;]+);base64,(.+)$/);
+
+  if (!name || !match) {
+    throw new Error("附件格式不正确。");
+  }
+
+  const size = Buffer.byteLength(match[2], "base64");
+  if (size > MAX_ATTACHMENT_BYTES) {
+    throw new Error("附件不能超过 5MB。");
+  }
+
+  return { name, type, data };
+}
 
 io.use((socket, next) => {
   const token = socket.handshake.auth?.token;
@@ -127,18 +150,54 @@ io.on("connection", (socket) => {
 
   socket.on("message:send", async (payload, ack) => {
     const body = String(payload?.body || "").trim();
+    let attachment = null;
 
-    if (!body || body.length > 1000) {
-      ack?.({ ok: false, error: "消息不能为空，且最多 1000 字。" });
+    try {
+      attachment = cleanAttachment(payload?.attachment);
+    } catch (error) {
+      ack?.({ ok: false, error: error.message });
+      return;
+    }
+
+    if ((!body && !attachment) || body.length > 1000) {
+      ack?.({ ok: false, error: "消息或附件不能为空，文字最多 1000 字。" });
       return;
     }
 
     try {
-      const message = await store.createMessage(socket.user, body);
+      const message = await store.createMessage(socket.user, body, attachment);
       io.emit("message:new", message);
       ack?.({ ok: true, message });
     } catch {
       ack?.({ ok: false, error: "发送失败，请稍后再试。" });
+    }
+  });
+
+  socket.on("message:recall", async (payload, ack) => {
+    try {
+      const messageId = String(payload?.id || "").trim();
+      const message = await store.recallMessage(socket.user, messageId);
+
+      if (!message) {
+        ack?.({ ok: false, error: "只能撤回自己发送的消息。" });
+        return;
+      }
+
+      io.emit("message:recalled", message);
+      ack?.({ ok: true, message });
+    } catch {
+      ack?.({ ok: false, error: "撤回失败，请稍后再试。" });
+    }
+  });
+
+  socket.on("message:delete", async (payload, ack) => {
+    try {
+      const messageId = String(payload?.id || "").trim();
+      const result = await store.deleteMessage(socket.user, messageId);
+      socket.emit("message:deleted", result);
+      ack?.({ ok: true, ...result });
+    } catch {
+      ack?.({ ok: false, error: "删除失败，请稍后再试。" });
     }
   });
 

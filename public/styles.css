@@ -219,12 +219,119 @@ button:hover {
   color: #fff;
 }
 
+.recalled .bubble {
+  background: #f3f4f6;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  margin-top: 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.22);
+  color: inherit;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.theirs .attachment {
+  background: #fff;
+  color: var(--accent);
+}
+
+.attachment img {
+  display: block;
+  max-width: min(260px, 100%);
+  max-height: 220px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.attachment-file {
+  overflow-wrap: anywhere;
+  padding: 8px 10px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.message.theirs .actions {
+  justify-content: flex-start;
+}
+
+.action-button {
+  height: auto;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0;
+}
+
+.action-button:hover {
+  background: transparent;
+  color: var(--accent);
+}
+
 .composer {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: auto 1fr auto;
   gap: 10px;
   border-top: 1px solid var(--line);
   padding: 14px;
+}
+
+.file-input {
+  display: none;
+}
+
+.attach-button {
+  grid-column: 1;
+  grid-row: 1;
+  width: 44px;
+  padding: 0;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.composer textarea {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.composer > button[type="submit"] {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.attachment-preview {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f9fafb;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 8px 10px;
+}
+
+.attachment-preview button {
+  height: auto;
+  background: transparent;
+  color: var(--muted);
+  padding: 0;
 }
 
 .hidden {
@@ -282,7 +389,7 @@ button:hover {
   }
 
   .message {
-    max-width: 82%;
+    max-width: 86%;
   }
 
   .meta {
@@ -295,13 +402,14 @@ button:hover {
   }
 
   .composer {
-    grid-template-columns: minmax(0, 1fr) 68px;
+    grid-template-columns: 42px minmax(0, 1fr) 62px;
     align-items: end;
     gap: 8px;
     padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
   }
 
-  .composer button {
+  .composer button,
+  .attach-button {
     height: 42px;
     padding: 0;
   }

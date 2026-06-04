@@ -2,6 +2,7 @@ const state = {
   token: localStorage.getItem("chat_token"),
   user: null,
   socket: null,
+  attachment: null,
 };
 
 const loginPanel = document.querySelector("#loginPanel");
@@ -11,8 +12,12 @@ const loginError = document.querySelector("#loginError");
 const messagesEl = document.querySelector("#messages");
 const messageForm = document.querySelector("#messageForm");
 const messageInput = document.querySelector("#messageInput");
+const fileInput = document.querySelector("#fileInput");
+const attachButton = document.querySelector("#attachButton");
+const attachmentPreview = document.querySelector("#attachmentPreview");
 const statusText = document.querySelector("#statusText");
 const logoutButton = document.querySelector("#logoutButton");
+const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 
 function api(path, options = {}) {
   return fetch(path, {
@@ -50,14 +55,107 @@ function formatTime(value) {
 function renderMessage(message) {
   const isMine = message.senderId === state.user.id;
   const item = document.createElement("article");
-  item.className = `message ${isMine ? "mine" : "theirs"}`;
+  item.className = `message ${isMine ? "mine" : "theirs"} ${message.recalledAt ? "recalled" : ""}`;
+  item.dataset.messageId = String(message.id);
   item.innerHTML = `
     <div class="meta">${message.senderName} · ${formatTime(message.createdAt)}</div>
     <div class="bubble"></div>
+    <div class="actions"></div>
   `;
-  item.querySelector(".bubble").textContent = message.body;
+  updateMessageElement(item, message);
   messagesEl.append(item);
   messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function renderAttachment(message, bubble) {
+  if (!message.attachmentData) {
+    return;
+  }
+
+  const link = document.createElement("a");
+  link.className = "attachment";
+  link.href = message.attachmentData;
+  link.download = message.attachmentName || "attachment";
+  link.target = "_blank";
+  link.rel = "noopener";
+
+  if (message.attachmentType?.startsWith("image/")) {
+    const image = document.createElement("img");
+    image.alt = message.attachmentName || "附件";
+    image.src = message.attachmentData;
+    link.append(image);
+  } else {
+    const label = document.createElement("span");
+    label.className = "attachment-file";
+    label.textContent = `附件：${message.attachmentName || "下载文件"}`;
+    link.append(label);
+  }
+
+  bubble.append(link);
+}
+
+function updateMessageElement(item, message) {
+  const isMine = message.senderId === state.user.id;
+  const bubble = item.querySelector(".bubble");
+  const actions = item.querySelector(".actions");
+
+  item.classList.toggle("recalled", Boolean(message.recalledAt));
+  bubble.innerHTML = "";
+  actions.innerHTML = "";
+
+  if (message.recalledAt) {
+    bubble.textContent = isMine ? "你撤回了一条消息" : `${message.senderName} 撤回了一条消息`;
+    return;
+  }
+
+  if (message.body) {
+    const body = document.createElement("div");
+    body.textContent = message.body;
+    bubble.append(body);
+  }
+
+  renderAttachment(message, bubble);
+
+  if (isMine) {
+    actions.append(createActionButton("撤回", () => recallMessage(message.id)));
+  }
+  actions.append(createActionButton("删除", () => deleteMessage(message.id)));
+}
+
+function createActionButton(text, onClick) {
+  const button = document.createElement("button");
+  button.className = "action-button";
+  button.type = "button";
+  button.textContent = text;
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+function replaceMessage(message) {
+  const item = messagesEl.querySelector(`[data-message-id="${message.id}"]`);
+  if (item) {
+    updateMessageElement(item, message);
+  }
+}
+
+function removeMessage(messageId) {
+  messagesEl.querySelector(`[data-message-id="${messageId}"]`)?.remove();
+}
+
+function recallMessage(id) {
+  state.socket.emit("message:recall", { id }, (result) => {
+    if (!result?.ok) {
+      statusText.textContent = result?.error || "撤回失败。";
+    }
+  });
+}
+
+function deleteMessage(id) {
+  state.socket.emit("message:delete", { id }, (result) => {
+    if (!result?.ok) {
+      statusText.textContent = result?.error || "删除失败。";
+    }
+  });
 }
 
 async function loadMessages() {
@@ -89,6 +187,8 @@ function connectSocket() {
   });
 
   state.socket.on("message:new", renderMessage);
+  state.socket.on("message:recalled", replaceMessage);
+  state.socket.on("message:deleted", ({ id }) => removeMessage(id));
 }
 
 async function boot() {
@@ -148,14 +248,18 @@ messageForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const body = messageInput.value.trim();
 
-  if (!body || !state.socket?.connected) {
+  if ((!body && !state.attachment) || !state.socket?.connected) {
     return;
   }
 
   messageInput.value = "";
-  state.socket.emit("message:send", { body }, (result) => {
+  const attachment = state.attachment;
+  clearAttachment();
+  state.socket.emit("message:send", { body, attachment }, (result) => {
     if (!result?.ok) {
       messageInput.value = body;
+      state.attachment = attachment;
+      updateAttachmentPreview();
       statusText.textContent = result?.error || "发送失败。";
     }
   });
@@ -172,5 +276,66 @@ logoutButton.addEventListener("click", () => {
   state.user = null;
   showLogin();
 });
+
+attachButton.addEventListener("click", () => {
+  fileInput.click();
+});
+
+fileInput.addEventListener("change", async () => {
+  const file = fileInput.files?.[0];
+
+  if (!file) {
+    clearAttachment();
+    return;
+  }
+
+  if (file.size > MAX_ATTACHMENT_BYTES) {
+    statusText.textContent = "附件不能超过 5MB。";
+    fileInput.value = "";
+    return;
+  }
+
+  state.attachment = {
+    name: file.name,
+    type: file.type || "application/octet-stream",
+    data: await readFileAsDataUrl(file),
+  };
+  updateAttachmentPreview();
+});
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(reader.result));
+    reader.addEventListener("error", reject);
+    reader.readAsDataURL(file);
+  });
+}
+
+function updateAttachmentPreview() {
+  attachmentPreview.innerHTML = "";
+
+  if (!state.attachment) {
+    attachmentPreview.classList.add("hidden");
+    return;
+  }
+
+  const name = document.createElement("span");
+  name.textContent = `已选择：${state.attachment.name}`;
+
+  const clear = document.createElement("button");
+  clear.type = "button";
+  clear.textContent = "移除";
+  clear.addEventListener("click", clearAttachment);
+
+  attachmentPreview.append(name, clear);
+  attachmentPreview.classList.remove("hidden");
+}
+
+function clearAttachment() {
+  state.attachment = null;
+  fileInput.value = "";
+  updateAttachmentPreview();
+}
 
 boot();

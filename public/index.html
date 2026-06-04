@@ -40,7 +40,10 @@
         <div class="messages" id="messages"></div>
 
         <form class="composer" id="messageForm">
+          <input class="file-input" id="fileInput" type="file" />
+          <button class="attach-button" id="attachButton" type="button" title="添加附件">+</button>
           <textarea id="messageInput" placeholder="输入消息..." maxlength="1000" rows="1"></textarea>
+          <div class="attachment-preview hidden" id="attachmentPreview"></div>
           <button type="submit">发送</button>
         </form>
       </section>
