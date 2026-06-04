@@ -7,6 +7,7 @@ const helmet = require("helmet");
 const compression = require("compression");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { Lunar, Solar } = require("lunar-javascript");
 const { Server } = require("socket.io");
 const { createStore } = require("./db");
 
@@ -44,6 +45,10 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 app.use(compression());
+app.use((req, res, next) => {
+  res.setHeader("Permissions-Policy", "camera=(self), microphone=(self)");
+  next();
+});
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -112,6 +117,17 @@ app.get("/api/messages", requireAuth, async (req, res) => {
   const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 200);
   const messages = await store.listMessages(req.user.id, limit);
   res.json({ messages });
+});
+
+app.get("/api/important-days", requireAuth, (req, res) => {
+  res.json({
+    today: formatYmd(todayInChina()),
+    days: [
+      buildSolarDay("结婚纪念日", "公历3月2日", 3, 2),
+      buildLunarDay("zw's birthday", "农历2月16日", 2, 16),
+      buildLunarDay("xht's birthday", "农历12月3日", 12, 3),
+    ],
+  });
 });
 
 app.post("/api/messages", requireAuth, async (req, res) => {
@@ -235,6 +251,81 @@ function cleanQuote(rawQuote) {
   }
 
   return { messageId, senderName, body };
+}
+
+function todayInChina() {
+  const parts = new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+    .formatToParts(new Date())
+    .reduce((result, part) => {
+      result[part.type] = part.value;
+      return result;
+    }, {});
+
+  return {
+    year: Number(parts.year),
+    month: Number(parts.month),
+    day: Number(parts.day),
+  };
+}
+
+function formatYmd(date) {
+  return `${date.year}-${String(date.month).padStart(2, "0")}-${String(date.day).padStart(2, "0")}`;
+}
+
+function compareYmd(left, right) {
+  return Date.UTC(left.year, left.month - 1, left.day) - Date.UTC(right.year, right.month - 1, right.day);
+}
+
+function daysBetween(from, to) {
+  return Math.round(compareYmd(to, from) / 86400000);
+}
+
+function buildSolarDay(name, calendarLabel, month, day) {
+  const today = todayInChina();
+  let target = { year: today.year, month, day };
+
+  if (compareYmd(target, today) < 0) {
+    target = { year: today.year + 1, month, day };
+  }
+
+  return buildImportantDay(name, calendarLabel, target);
+}
+
+function buildLunarDay(name, calendarLabel, lunarMonth, lunarDay) {
+  const today = todayInChina();
+  const currentLunarYear = Solar.fromYmd(today.year, today.month, today.day).getLunar().getYear();
+  let target = null;
+
+  for (let year = currentLunarYear - 1; year <= currentLunarYear + 3; year += 1) {
+    const solar = Lunar.fromYmd(year, lunarMonth, lunarDay).getSolar();
+    const candidate = {
+      year: solar.getYear(),
+      month: solar.getMonth(),
+      day: solar.getDay(),
+    };
+
+    if (compareYmd(candidate, today) >= 0 && (!target || compareYmd(candidate, target) < 0)) {
+      target = candidate;
+    }
+  }
+
+  return buildImportantDay(name, calendarLabel, target);
+}
+
+function buildImportantDay(name, calendarLabel, target) {
+  const today = todayInChina();
+
+  return {
+    name,
+    calendarLabel,
+    nextDate: formatYmd(target),
+    daysLeft: daysBetween(today, target),
+  };
 }
 
 io.use((socket, next) => {

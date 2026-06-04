@@ -6,6 +6,7 @@ const state = {
   quote: null,
   contextMessage: null,
   longPressTimer: null,
+  renderedMessages: new Set(),
 };
 
 const loginPanel = document.querySelector("#loginPanel");
@@ -14,6 +15,7 @@ const loginForm = document.querySelector("#loginForm");
 const loginError = document.querySelector("#loginError");
 const messagesEl = document.querySelector("#messages");
 const messageForm = document.querySelector("#messageForm");
+const sendButton = document.querySelector("#sendButton");
 const messageInput = document.querySelector("#messageInput");
 const fileInput = document.querySelector("#fileInput");
 const attachButton = document.querySelector("#attachButton");
@@ -27,11 +29,16 @@ const stickerPreview = document.querySelector("#stickerPreview");
 const refreshStickerButton = document.querySelector("#refreshStickerButton");
 const sendStickerButton = document.querySelector("#sendStickerButton");
 const stickerSearchForm = document.querySelector("#stickerSearchForm");
+const stickerSearchButton = document.querySelector("#stickerSearchButton");
 const stickerSearchInput = document.querySelector("#stickerSearchInput");
 const contextMenu = document.querySelector("#contextMenu");
 const statusText = document.querySelector("#statusText");
 const logoutButton = document.querySelector("#logoutButton");
 const clearHistoryButton = document.querySelector("#clearHistoryButton");
+const importantDaysButton = document.querySelector("#importantDaysButton");
+const importantDaysPanel = document.querySelector("#importantDaysPanel");
+const importantDaysList = document.querySelector("#importantDaysList");
+const closeImportantDaysButton = document.querySelector("#closeImportantDaysButton");
 const audioCallButton = document.querySelector("#audioCallButton");
 const videoCallButton = document.querySelector("#videoCallButton");
 const callMenuButton = document.querySelector("#callMenuButton");
@@ -125,10 +132,17 @@ function formatTime(value) {
 }
 
 function renderMessage(message) {
+  const messageId = String(message.id);
+
+  if (state.renderedMessages.has(messageId)) {
+    return;
+  }
+
+  state.renderedMessages.add(messageId);
   const isMine = message.senderId === state.user.id;
   const item = document.createElement("article");
   item.className = `message ${isMine ? "mine" : "theirs"} ${message.recalledAt ? "recalled" : ""}`;
-  item.dataset.messageId = String(message.id);
+  item.dataset.messageId = messageId;
   item.innerHTML = `
     <div class="meta">${message.senderName} · ${formatTime(message.createdAt)}</div>
     <div class="bubble"></div>
@@ -332,7 +346,7 @@ async function loadSticker() {
 }
 
 function sendSticker() {
-  if (!currentSticker || !state.socket?.connected) {
+  if (!currentSticker) {
     return;
   }
 
@@ -340,12 +354,41 @@ function sendSticker() {
   currentSticker = null;
   stickerPreview.textContent = "点击“换一张”获取表情包";
   closeEmojiPanel();
-  state.socket.emit("message:send", { body: "", attachment }, (result) => {
-    if (!result?.ok) {
-      statusText.textContent = result?.error || "表情包发送失败。";
-      currentSticker = attachment;
-    }
+  sendMessageByHttp({ body: "", attachment, quote: null }).catch((error) => {
+    statusText.textContent = error.message || "表情包发送失败。";
+    currentSticker = attachment;
   });
+}
+
+async function sendCurrentMessage() {
+  const body = messageInput.value.trim();
+
+  if (!body && !state.attachment) {
+    return;
+  }
+
+  messageInput.value = "";
+  const attachment = state.attachment;
+  const quote = state.quote;
+  clearAttachment();
+  clearQuote();
+  closeEmojiPanel();
+  closeCallMenu();
+  const payload = { body, attachment, quote };
+  const restoreDraft = (error) => {
+    messageInput.value = body;
+    state.attachment = attachment;
+    state.quote = quote;
+    updateAttachmentPreview();
+    updateReplyPreview();
+    statusText.textContent = error || "发送失败。";
+  };
+
+  try {
+    await sendMessageByHttp(payload);
+  } catch (error) {
+    restoreDraft(error.message);
+  }
 }
 
 function requestNotificationPermission() {
@@ -369,6 +412,60 @@ function notifyIncomingMessage(message) {
     body: "收到一条新消息",
     tag: "private-chat-message",
   });
+}
+
+async function sendMessageByHttp(payload) {
+  const response = await api("/api/messages", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || "发送失败。");
+  }
+
+  renderMessage(data.message);
+  statusText.textContent = state.socket?.connected ? "已发送" : "已发送，实时连接恢复后会自动同步";
+  return data.message;
+}
+
+function closeImportantDaysPanel() {
+  importantDaysPanel?.classList.add("hidden");
+}
+
+async function openImportantDaysPanel() {
+  importantDaysPanel?.classList.remove("hidden");
+  importantDaysList.textContent = "正在计算...";
+
+  try {
+    const response = await api("/api/important-days");
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "重要日子加载失败。");
+    }
+
+    importantDaysList.innerHTML = "";
+    for (const item of data.days) {
+      const row = document.createElement("article");
+      row.className = "important-day";
+      row.innerHTML = `
+        <div>
+          <strong></strong>
+          <span></span>
+        </div>
+        <div class="countdown"></div>
+      `;
+      row.querySelector("strong").textContent = item.name;
+      row.querySelector("span").textContent = `${item.calendarLabel} · 下次是 ${item.nextDate}`;
+      row.querySelector(".countdown").textContent =
+        item.daysLeft === 0 ? "就是今天" : `还剩 ${item.daysLeft} 天`;
+      importantDaysList.append(row);
+    }
+  } catch (error) {
+    importantDaysList.textContent = error.message;
+  }
 }
 
 function createPeerConnection() {
@@ -400,6 +497,12 @@ function createPeerConnection() {
 
 async function startCall(mode) {
   if (!state.socket?.connected || peerConnection) {
+    statusText.textContent = state.socket?.connected ? "正在通话中" : "实时连接未恢复，暂时不能通话";
+    return;
+  }
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    statusText.textContent = "当前浏览器不支持摄像头/麦克风权限，请换 Chrome 或 Edge。";
     return;
   }
 
@@ -414,8 +517,8 @@ async function startCall(mode) {
       audio: true,
       video: mode === "video",
     });
-  } catch {
-    callStatus.textContent = "请允许麦克风/摄像头权限后再试";
+  } catch (error) {
+    callStatus.textContent = getMediaErrorText(error, mode);
     setTimeout(() => endCall(false), 1400);
     return;
   }
@@ -445,8 +548,8 @@ async function acceptCall() {
       audio: true,
       video: mode === "video",
     });
-  } catch {
-    callStatus.textContent = "请允许麦克风/摄像头权限后再接听";
+  } catch (error) {
+    callStatus.textContent = getMediaErrorText(error, mode);
     setTimeout(() => endCall(false), 1400);
     return;
   }
@@ -517,6 +620,20 @@ function endCall(emit = true) {
   }
 }
 
+function getMediaErrorText(error, mode) {
+  if (error?.name === "NotAllowedError" || error?.name === "SecurityError") {
+    return mode === "video"
+      ? "请在浏览器地址栏允许摄像头和麦克风权限"
+      : "请在浏览器地址栏允许麦克风权限";
+  }
+
+  if (error?.name === "NotFoundError") {
+    return mode === "video" ? "没有找到摄像头或麦克风" : "没有找到麦克风";
+  }
+
+  return "权限弹窗没有打开时，请刷新页面后再点一次通话";
+}
+
 function scrollToMessage(messageId) {
   const item = messagesEl.querySelector(`[data-message-id="${messageId}"]`);
   if (!item) {
@@ -565,6 +682,7 @@ async function loadMessages() {
   }
 
   messagesEl.innerHTML = "";
+  state.renderedMessages.clear();
   data.messages.forEach(renderMessage);
 }
 
@@ -596,6 +714,7 @@ function connectSocket() {
   state.socket.on("message:deleted", ({ id }) => removeMessage(id));
   state.socket.on("messages:cleared", () => {
     messagesEl.innerHTML = "";
+    state.renderedMessages.clear();
     statusText.textContent = "聊天记录已清空";
   });
   state.socket.on("call:offer", receiveCall);
@@ -659,53 +778,12 @@ loginForm.addEventListener("submit", async (event) => {
 
 messageForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const body = messageInput.value.trim();
+  await sendCurrentMessage();
+});
 
-  if (!body && !state.attachment) {
-    return;
-  }
-
-  messageInput.value = "";
-  const attachment = state.attachment;
-  const quote = state.quote;
-  clearAttachment();
-  clearQuote();
-  closeEmojiPanel();
-  closeCallMenu();
-  const payload = { body, attachment, quote };
-  const restoreDraft = (error) => {
-    messageInput.value = body;
-    state.attachment = attachment;
-    state.quote = quote;
-    updateAttachmentPreview();
-    updateReplyPreview();
-    statusText.textContent = error || "发送失败。";
-  };
-
-  if (!state.socket?.connected) {
-    try {
-      const response = await api("/api/messages", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "发送失败。");
-      }
-      renderMessage(data.message);
-      statusText.textContent = "已发送，实时连接恢复后会自动同步";
-    } catch (error) {
-      restoreDraft(error.message);
-    }
-    return;
-  }
-
-  state.socket.emit("message:send", payload, (result) => {
-    if (!result?.ok) {
-      restoreDraft(result?.error || "发送失败。");
-    }
-  });
+sendButton?.addEventListener("click", async (event) => {
+  event.preventDefault();
+  await sendCurrentMessage();
 });
 
 messageInput.addEventListener("input", () => {
@@ -759,6 +837,13 @@ document.addEventListener("click", (event) => {
   ) {
     closeCallMenu();
   }
+  if (
+    importantDaysPanel &&
+    !importantDaysPanel.classList.contains("hidden") &&
+    event.target === importantDaysPanel
+  ) {
+    closeImportantDaysPanel();
+  }
 });
 
 attachButton.addEventListener("click", () => {
@@ -784,9 +869,12 @@ emojiPanel.addEventListener("click", (event) => {
 
 refreshStickerButton?.addEventListener("click", loadSticker);
 sendStickerButton?.addEventListener("click", sendSticker);
-stickerSearchForm?.addEventListener("submit", (event) => {
-  event.preventDefault();
-  loadSticker();
+stickerSearchButton?.addEventListener("click", loadSticker);
+stickerSearchInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    loadSticker();
+  }
 });
 callMenuButton?.addEventListener("click", () => {
   closeContextMenu();
@@ -803,6 +891,8 @@ videoCallButton?.addEventListener("click", () => {
 });
 acceptCallButton?.addEventListener("click", acceptCall);
 endCallButton?.addEventListener("click", () => endCall(true));
+importantDaysButton?.addEventListener("click", openImportantDaysPanel);
+closeImportantDaysButton?.addEventListener("click", closeImportantDaysPanel);
 
 clearHistoryButton?.addEventListener("click", async () => {
   const password = window.prompt("请输入确认密码，清空后不可恢复。");
@@ -823,6 +913,7 @@ clearHistoryButton?.addEventListener("click", async () => {
     }
 
     messagesEl.innerHTML = "";
+    state.renderedMessages.clear();
     statusText.textContent = "聊天记录已清空";
   } catch (error) {
     statusText.textContent = error.message;

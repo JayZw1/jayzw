@@ -185,6 +185,19 @@ button:hover {
   font-size: 18px;
 }
 
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.important-days-button {
+  width: 48px;
+  height: 32px;
+  padding: 0;
+  font-size: 13px;
+}
+
 .chat-header p {
   font-size: 13px;
 }
@@ -592,6 +605,76 @@ button:hover {
   background: #b91c1c;
 }
 
+.important-days-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 42, 0.42);
+  padding: 18px;
+}
+
+.important-days-card {
+  display: grid;
+  gap: 14px;
+  width: min(100%, 420px);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 20px 55px rgba(15, 23, 42, 0.2);
+  padding: 16px;
+}
+
+.modal-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.modal-title h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.important-days-list {
+  display: grid;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.important-day {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.important-day strong,
+.important-day span {
+  display: block;
+}
+
+.important-day strong {
+  color: var(--text);
+}
+
+.important-day span {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.countdown {
+  color: var(--accent);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .hidden {
   display: none;
 }
@@ -629,6 +712,11 @@ button:hover {
 
   .chat-header h1 {
     font-size: 17px;
+  }
+
+  .important-days-button {
+    width: 44px;
+    height: 30px;
   }
 
   .chat-header p {
@@ -692,6 +780,10 @@ button:hover {
   }
 
   .video-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .important-day {
     grid-template-columns: 1fr;
   }
 

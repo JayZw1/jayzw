@@ -31,7 +31,10 @@
       <section class="chat-panel hidden" id="chatPanel">
         <header class="chat-header">
           <div>
-            <h1>碎碎念收件箱</h1>
+            <div class="title-row">
+              <h1>碎碎念收件箱</h1>
+              <button class="ghost important-days-button" id="importantDaysButton" type="button">日子</button>
+            </div>
             <p id="statusText">正在连接...</p>
           </div>
           <div class="header-actions">
@@ -61,10 +64,10 @@
             </div>
             <div class="emoji-grid" id="emojiGrid"></div>
             <div class="sticker-pane hidden" id="stickerPane">
-              <form class="sticker-search" id="stickerSearchForm">
+              <div class="sticker-search" id="stickerSearchForm">
                 <input id="stickerSearchInput" placeholder="搜索表情包" value="开心" />
-                <button type="submit">搜索</button>
-              </form>
+                <button type="button" id="stickerSearchButton">搜索</button>
+              </div>
               <div class="sticker-preview" id="stickerPreview">点击“换一张”获取表情包</div>
               <div class="sticker-actions">
                 <button type="button" id="refreshStickerButton">换一张</button>
@@ -72,7 +75,7 @@
               </div>
             </div>
           </div>
-          <button type="submit">发送</button>
+          <button id="sendButton" type="submit">发送</button>
         </form>
       </section>
 
@@ -93,6 +96,16 @@
             <button type="button" id="acceptCallButton">接听</button>
             <button type="button" id="endCallButton">结束</button>
           </div>
+        </div>
+      </div>
+
+      <div class="important-days-panel hidden" id="importantDaysPanel">
+        <div class="important-days-card">
+          <div class="modal-title">
+            <h2>重要日子</h2>
+            <button class="ghost icon-control" id="closeImportantDaysButton" type="button" title="关闭">×</button>
+          </div>
+          <div class="important-days-list" id="importantDaysList">正在计算...</div>
         </div>
       </div>
     </main>
