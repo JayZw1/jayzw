@@ -26,11 +26,26 @@ const stickerPane = document.querySelector("#stickerPane");
 const stickerPreview = document.querySelector("#stickerPreview");
 const refreshStickerButton = document.querySelector("#refreshStickerButton");
 const sendStickerButton = document.querySelector("#sendStickerButton");
+const stickerSearchForm = document.querySelector("#stickerSearchForm");
+const stickerSearchInput = document.querySelector("#stickerSearchInput");
 const contextMenu = document.querySelector("#contextMenu");
 const statusText = document.querySelector("#statusText");
 const logoutButton = document.querySelector("#logoutButton");
+const audioCallButton = document.querySelector("#audioCallButton");
+const videoCallButton = document.querySelector("#videoCallButton");
+const callPanel = document.querySelector("#callPanel");
+const callStatus = document.querySelector("#callStatus");
+const localVideo = document.querySelector("#localVideo");
+const remoteVideo = document.querySelector("#remoteVideo");
+const acceptCallButton = document.querySelector("#acceptCallButton");
+const endCallButton = document.querySelector("#endCallButton");
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 let currentSticker = null;
+let peerConnection = null;
+let localStream = null;
+let pendingOffer = null;
+let currentCallMode = null;
+let callStartedAt = null;
 const EMOJIS = [
   "😀",
   "😄",
@@ -290,7 +305,8 @@ async function loadSticker() {
   currentSticker = null;
 
   try {
-    const response = await api("/api/sticker");
+    const query = encodeURIComponent(stickerSearchInput.value.trim() || "开心");
+    const response = await api(`/api/sticker?q=${query}`);
     const data = await response.json();
 
     if (!response.ok) {
@@ -346,6 +362,129 @@ function notifyIncomingMessage(message) {
     body: "收到一条新消息",
     tag: "private-chat-message",
   });
+}
+
+function createPeerConnection() {
+  const pc = new RTCPeerConnection({
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+  });
+
+  pc.onicecandidate = (event) => {
+    if (event.candidate) {
+      state.socket.emit("call:ice", { candidate: event.candidate });
+    }
+  };
+  pc.ontrack = (event) => {
+    remoteVideo.srcObject = event.streams[0];
+  };
+  pc.onconnectionstatechange = () => {
+    if (["failed", "disconnected", "closed"].includes(pc.connectionState)) {
+      endCall(false);
+    }
+  };
+
+  return pc;
+}
+
+async function startCall(mode) {
+  if (!state.socket?.connected || peerConnection) {
+    return;
+  }
+
+  currentCallMode = mode;
+  callStartedAt = Date.now();
+  callPanel.classList.remove("hidden");
+  acceptCallButton.classList.add("hidden");
+  callStatus.textContent = mode === "video" ? "正在发起视频通话..." : "正在发起语音通话...";
+
+  localStream = await navigator.mediaDevices.getUserMedia({
+    audio: true,
+    video: mode === "video",
+  });
+  localVideo.srcObject = localStream;
+  peerConnection = createPeerConnection();
+  localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
+
+  const offer = await peerConnection.createOffer();
+  await peerConnection.setLocalDescription(offer);
+  state.socket.emit("call:offer", { mode, offer });
+}
+
+async function acceptCall() {
+  if (!pendingOffer || peerConnection) {
+    return;
+  }
+
+  const { mode, offer } = pendingOffer;
+  currentCallMode = mode;
+  callStartedAt = Date.now();
+  pendingOffer = null;
+  acceptCallButton.classList.add("hidden");
+  callStatus.textContent = mode === "video" ? "视频通话中" : "语音通话中";
+
+  localStream = await navigator.mediaDevices.getUserMedia({
+    audio: true,
+    video: mode === "video",
+  });
+  localVideo.srcObject = localStream;
+  peerConnection = createPeerConnection();
+  localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
+
+  await peerConnection.setRemoteDescription(offer);
+  const answer = await peerConnection.createAnswer();
+  await peerConnection.setLocalDescription(answer);
+  state.socket.emit("call:answer", { answer });
+}
+
+function receiveCall({ from, mode, offer }) {
+  if (peerConnection) {
+    return;
+  }
+
+  pendingOffer = { mode, offer };
+  currentCallMode = mode;
+  callPanel.classList.remove("hidden");
+  acceptCallButton.classList.remove("hidden");
+  callStatus.textContent = `${from.displayName} 邀请你${mode === "video" ? "视频通话" : "语音通话"}`;
+}
+
+async function applyAnswer({ answer }) {
+  if (!peerConnection) {
+    return;
+  }
+
+  await peerConnection.setRemoteDescription(answer);
+  callStatus.textContent = currentCallMode === "video" ? "视频通话中" : "语音通话中";
+}
+
+async function applyIce({ candidate }) {
+  if (!peerConnection || !candidate) {
+    return;
+  }
+
+  try {
+    await peerConnection.addIceCandidate(candidate);
+  } catch {}
+}
+
+function endCall(emit = true) {
+  const seconds = callStartedAt ? Math.max(0, Math.floor((Date.now() - callStartedAt) / 1000)) : 0;
+  const mode = currentCallMode || "audio";
+
+  peerConnection?.close();
+  peerConnection = null;
+  localStream?.getTracks().forEach((track) => track.stop());
+  localStream = null;
+  localVideo.srcObject = null;
+  remoteVideo.srcObject = null;
+  pendingOffer = null;
+  callStartedAt = null;
+  currentCallMode = null;
+  callPanel.classList.add("hidden");
+
+  if (emit) {
+    state.socket.emit("call:end", { mode, seconds });
+  }
 }
 
 function scrollToMessage(messageId) {
@@ -421,6 +560,10 @@ function connectSocket() {
   });
   state.socket.on("message:recalled", replaceMessage);
   state.socket.on("message:deleted", ({ id }) => removeMessage(id));
+  state.socket.on("call:offer", receiveCall);
+  state.socket.on("call:answer", applyAnswer);
+  state.socket.on("call:ice", applyIce);
+  state.socket.on("call:end", () => endCall(false));
 }
 
 async function boot() {
@@ -566,8 +709,16 @@ emojiPanel.addEventListener("click", (event) => {
   setEmojiTab(tabButton.dataset.emojiTab);
 });
 
-refreshStickerButton.addEventListener("click", loadSticker);
-sendStickerButton.addEventListener("click", sendSticker);
+refreshStickerButton?.addEventListener("click", loadSticker);
+sendStickerButton?.addEventListener("click", sendSticker);
+stickerSearchForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  loadSticker();
+});
+audioCallButton?.addEventListener("click", () => startCall("audio"));
+videoCallButton?.addEventListener("click", () => startCall("video"));
+acceptCallButton?.addEventListener("click", acceptCall);
+endCallButton?.addEventListener("click", () => endCall(true));
 
 fileInput.addEventListener("change", async () => {
   const file = fileInput.files?.[0];

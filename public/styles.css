@@ -166,6 +166,17 @@ button:hover {
   padding: 18px 20px;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-control {
+  width: 42px;
+  padding: 0;
+}
+
 .chat-header h1 {
   font-size: 18px;
 }
@@ -428,6 +439,22 @@ button:hover {
   gap: 10px;
 }
 
+.sticker-search {
+  display: grid;
+  grid-template-columns: 1fr 64px;
+  gap: 8px;
+}
+
+.sticker-search input {
+  height: 36px;
+}
+
+.sticker-search button {
+  height: 36px;
+  border-radius: 6px;
+  padding: 0;
+}
+
 .sticker-preview {
   display: grid;
   min-height: 150px;
@@ -476,6 +503,63 @@ button:hover {
 
 .context-menu button:hover {
   background: #f3f4f6;
+}
+
+.call-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 42, 0.72);
+  padding: 20px;
+}
+
+.call-box {
+  display: grid;
+  gap: 14px;
+  width: min(100%, 520px);
+  border-radius: 8px;
+  background: #fff;
+  padding: 16px;
+}
+
+.call-box p {
+  margin: 0;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.video-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 120px;
+  align-items: end;
+}
+
+.video-grid video {
+  width: 100%;
+  min-height: 120px;
+  border-radius: 8px;
+  background: #111827;
+}
+
+#localVideo {
+  min-height: 90px;
+}
+
+.call-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+#endCallButton {
+  background: #dc2626;
+}
+
+#endCallButton:hover {
+  background: #b91c1c;
 }
 
 .hidden {
@@ -527,6 +611,14 @@ button:hover {
     padding: 0;
   }
 
+  .header-actions {
+    gap: 6px;
+  }
+
+  .icon-control {
+    width: 38px;
+  }
+
   .messages {
     gap: 10px;
     padding: 14px 14px 18px;
@@ -566,6 +658,15 @@ button:hover {
 
   .emoji-grid {
     grid-template-columns: repeat(7, 1fr);
+  }
+
+  .video-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #localVideo {
+    justify-self: end;
+    width: 42%;
   }
 
   textarea {

@@ -15,7 +15,8 @@ const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 const TOKEN_MAX_AGE = "30d";
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 const STICKER_API_URL =
-  process.env.STICKER_API_URL || "http://101.35.2.25/api/img/apihzbqbbaidu.php";
+  process.env.STICKER_API_URL ||
+  "https://cn.apihz.cn/api/img/apihzbqb.php?id=88888888&key=88888888&type=2&words={query}&limit=8";
 
 const users = [
   {
@@ -114,13 +115,16 @@ app.get("/api/messages", requireAuth, async (req, res) => {
 
 app.get("/api/sticker", requireAuth, async (req, res) => {
   try {
-    const response = await fetch(STICKER_API_URL);
+    const query = encodeURIComponent(String(req.query.q || "开心").trim() || "开心");
+    const response = await fetch(STICKER_API_URL.replace("{query}", query));
     const contentType = response.headers.get("content-type") || "";
     let imageResponse = response;
 
     if (contentType.includes("application/json")) {
       const data = await response.json();
-      const imageUrl = data.url || data.img || data.image || data.pic || data.data;
+      const imageUrl = Array.isArray(data.res)
+        ? data.res[Math.floor(Math.random() * data.res.length)]
+        : data.url || data.img || data.image || data.pic || data.data;
 
       if (!imageUrl || data.code === 400) {
         return res.status(502).json({ error: data.msg || "表情包接口暂时不可用。" });
@@ -260,6 +264,48 @@ io.on("connection", (socket) => {
     } catch {
       ack?.({ ok: false, error: "删除失败，请稍后再试。" });
     }
+  });
+
+  socket.on("call:offer", (payload) => {
+    socket.broadcast.emit("call:offer", {
+      from: publicUser(socket.user),
+      mode: payload?.mode === "video" ? "video" : "audio",
+      offer: payload?.offer,
+    });
+  });
+
+  socket.on("call:answer", (payload) => {
+    socket.broadcast.emit("call:answer", {
+      from: publicUser(socket.user),
+      answer: payload?.answer,
+    });
+  });
+
+  socket.on("call:ice", (payload) => {
+    socket.broadcast.emit("call:ice", {
+      from: publicUser(socket.user),
+      candidate: payload?.candidate,
+    });
+  });
+
+  socket.on("call:end", async (payload) => {
+    const mode = payload?.mode === "video" ? "video" : "audio";
+    const minutes = Math.max(0, Math.ceil(Number(payload?.seconds || 0) / 60));
+    const hoursPart = Math.floor(minutes / 60);
+    const minutesPart = minutes % 60;
+    const label = mode === "video" ? "视频通话" : "语音通话";
+    const body = `${label} ${hoursPart}小时${minutesPart}分钟`;
+
+    socket.broadcast.emit("call:end", {
+      from: publicUser(socket.user),
+      mode,
+      seconds: Number(payload?.seconds || 0),
+    });
+
+    try {
+      const message = await store.createMessage(socket.user, body, null, null);
+      io.emit("message:new", message);
+    } catch {}
   });
 
   socket.on("disconnect", () => {

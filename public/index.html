@@ -34,7 +34,11 @@
             <h1>碎碎念收件箱</h1>
             <p id="statusText">正在连接...</p>
           </div>
-          <button class="ghost" id="logoutButton" type="button">退出</button>
+          <div class="header-actions">
+            <button class="ghost icon-control" id="audioCallButton" type="button" title="语音通话">☎</button>
+            <button class="ghost icon-control" id="videoCallButton" type="button" title="视频通话">▣</button>
+            <button class="ghost" id="logoutButton" type="button">退出</button>
+          </div>
         </header>
 
         <div class="messages" id="messages"></div>
@@ -53,6 +57,10 @@
             </div>
             <div class="emoji-grid" id="emojiGrid"></div>
             <div class="sticker-pane hidden" id="stickerPane">
+              <form class="sticker-search" id="stickerSearchForm">
+                <input id="stickerSearchInput" placeholder="搜索表情包" value="开心" />
+                <button type="submit">搜索</button>
+              </form>
               <div class="sticker-preview" id="stickerPreview">点击“换一张”获取表情包</div>
               <div class="sticker-actions">
                 <button type="button" id="refreshStickerButton">换一张</button>
@@ -68,6 +76,20 @@
         <button type="button" data-action="quote">引用</button>
         <button type="button" data-action="recall">撤回</button>
         <button type="button" data-action="delete">删除</button>
+      </div>
+
+      <div class="call-panel hidden" id="callPanel">
+        <div class="call-box">
+          <p id="callStatus">正在通话</p>
+          <div class="video-grid">
+            <video id="remoteVideo" autoplay playsinline></video>
+            <video id="localVideo" autoplay muted playsinline></video>
+          </div>
+          <div class="call-controls">
+            <button type="button" id="acceptCallButton">接听</button>
+            <button type="button" id="endCallButton">结束</button>
+          </div>
+        </div>
       </div>
     </main>
 
