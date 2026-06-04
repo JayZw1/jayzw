@@ -3,6 +3,9 @@ const state = {
   user: null,
   socket: null,
   attachment: null,
+  quote: null,
+  contextMessage: null,
+  longPressTimer: null,
 };
 
 const loginPanel = document.querySelector("#loginPanel");
@@ -15,9 +18,51 @@ const messageInput = document.querySelector("#messageInput");
 const fileInput = document.querySelector("#fileInput");
 const attachButton = document.querySelector("#attachButton");
 const attachmentPreview = document.querySelector("#attachmentPreview");
+const replyPreview = document.querySelector("#replyPreview");
+const emojiButton = document.querySelector("#emojiButton");
+const emojiPanel = document.querySelector("#emojiPanel");
+const contextMenu = document.querySelector("#contextMenu");
 const statusText = document.querySelector("#statusText");
 const logoutButton = document.querySelector("#logoutButton");
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+const EMOJIS = [
+  "😀",
+  "😄",
+  "😁",
+  "😆",
+  "😊",
+  "😉",
+  "😍",
+  "😘",
+  "😋",
+  "😜",
+  "🤔",
+  "😎",
+  "😭",
+  "🥹",
+  "😤",
+  "😡",
+  "😳",
+  "😴",
+  "🤒",
+  "😷",
+  "👍",
+  "👎",
+  "👏",
+  "🙏",
+  "💪",
+  "🤝",
+  "❤️",
+  "💔",
+  "🌹",
+  "🎉",
+  "✨",
+  "🔥",
+  "🍚",
+  "🍜",
+  "☕",
+  "🎂",
+];
 
 function api(path, options = {}) {
   return fetch(path, {
@@ -34,6 +79,8 @@ function showLogin() {
   chatPanel.classList.add("hidden");
   loginPanel.classList.remove("hidden");
   state.socket?.disconnect();
+  closeContextMenu();
+  closeEmojiPanel();
 }
 
 function showChat() {
@@ -60,8 +107,8 @@ function renderMessage(message) {
   item.innerHTML = `
     <div class="meta">${message.senderName} · ${formatTime(message.createdAt)}</div>
     <div class="bubble"></div>
-    <div class="actions"></div>
   `;
+  bindMessageMenu(item, message);
   updateMessageElement(item, message);
   messagesEl.append(item);
   messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -97,15 +144,22 @@ function renderAttachment(message, bubble) {
 function updateMessageElement(item, message) {
   const isMine = message.senderId === state.user.id;
   const bubble = item.querySelector(".bubble");
-  const actions = item.querySelector(".actions");
 
   item.classList.toggle("recalled", Boolean(message.recalledAt));
   bubble.innerHTML = "";
-  actions.innerHTML = "";
 
   if (message.recalledAt) {
     bubble.textContent = isMine ? "你撤回了一条消息" : `${message.senderName} 撤回了一条消息`;
     return;
+  }
+
+  if (message.quoteBody) {
+    const quote = document.createElement("button");
+    quote.className = "quote-card";
+    quote.type = "button";
+    quote.textContent = `${message.quoteSenderName}：${message.quoteBody}`;
+    quote.addEventListener("click", () => scrollToMessage(message.quoteMessageId));
+    bubble.append(quote);
   }
 
   if (message.body) {
@@ -115,20 +169,117 @@ function updateMessageElement(item, message) {
   }
 
   renderAttachment(message, bubble);
-
-  if (isMine) {
-    actions.append(createActionButton("撤回", () => recallMessage(message.id)));
-  }
-  actions.append(createActionButton("删除", () => deleteMessage(message.id)));
 }
 
-function createActionButton(text, onClick) {
-  const button = document.createElement("button");
-  button.className = "action-button";
-  button.type = "button";
-  button.textContent = text;
-  button.addEventListener("click", onClick);
-  return button;
+function bindMessageMenu(item, message) {
+  item.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+    openContextMenu(message, event.clientX, event.clientY);
+  });
+
+  item.addEventListener("touchstart", (event) => {
+    clearTimeout(state.longPressTimer);
+    const touch = event.touches[0];
+    state.longPressTimer = setTimeout(() => {
+      openContextMenu(message, touch.clientX, touch.clientY);
+    }, 520);
+  });
+
+  item.addEventListener("touchmove", () => clearTimeout(state.longPressTimer));
+  item.addEventListener("touchend", () => clearTimeout(state.longPressTimer));
+  item.addEventListener("touchcancel", () => clearTimeout(state.longPressTimer));
+}
+
+function openContextMenu(message, x, y) {
+  if (message.recalledAt) {
+    return;
+  }
+
+  state.contextMessage = message;
+  const recall = contextMenu.querySelector('[data-action="recall"]');
+  recall.hidden = message.senderId !== state.user.id;
+  closeEmojiPanel();
+  contextMenu.classList.remove("hidden");
+
+  const rect = contextMenu.getBoundingClientRect();
+  const left = Math.min(x, window.innerWidth - rect.width - 12);
+  const top = Math.min(y, window.innerHeight - rect.height - 12);
+  contextMenu.style.left = `${Math.max(12, left)}px`;
+  contextMenu.style.top = `${Math.max(12, top)}px`;
+}
+
+function closeContextMenu() {
+  contextMenu.classList.add("hidden");
+  state.contextMessage = null;
+}
+
+function quoteMessage(message) {
+  state.quote = {
+    messageId: String(message.id),
+    senderName: message.senderName,
+    body: message.body || (message.attachmentName ? `附件：${message.attachmentName}` : "消息"),
+  };
+  updateReplyPreview();
+  messageInput.focus();
+}
+
+function updateReplyPreview() {
+  replyPreview.innerHTML = "";
+
+  if (!state.quote) {
+    replyPreview.classList.add("hidden");
+    return;
+  }
+
+  const text = document.createElement("span");
+  text.textContent = `回复 ${state.quote.senderName}：${state.quote.body}`;
+  const clear = document.createElement("button");
+  clear.type = "button";
+  clear.textContent = "取消";
+  clear.addEventListener("click", clearQuote);
+  replyPreview.append(text, clear);
+  replyPreview.classList.remove("hidden");
+}
+
+function clearQuote() {
+  state.quote = null;
+  updateReplyPreview();
+}
+
+function renderEmojiPanel() {
+  emojiPanel.innerHTML = "";
+  for (const emoji of EMOJIS) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = emoji;
+    button.addEventListener("click", () => insertEmoji(emoji));
+    emojiPanel.append(button);
+  }
+}
+
+function insertEmoji(emoji) {
+  const start = messageInput.selectionStart ?? messageInput.value.length;
+  const end = messageInput.selectionEnd ?? messageInput.value.length;
+  messageInput.value = `${messageInput.value.slice(0, start)}${emoji}${messageInput.value.slice(end)}`;
+  const cursor = start + emoji.length;
+  messageInput.setSelectionRange(cursor, cursor);
+  messageInput.focus();
+}
+
+function closeEmojiPanel() {
+  emojiPanel.classList.add("hidden");
+}
+
+function scrollToMessage(messageId) {
+  const item = messagesEl.querySelector(`[data-message-id="${messageId}"]`);
+  if (!item) {
+    statusText.textContent = "引用的消息不在当前列表里。";
+    return;
+  }
+
+  item.scrollIntoView({ behavior: "smooth", block: "center" });
+  item.classList.add("highlight");
+  setTimeout(() => item.classList.remove("highlight"), 1200);
 }
 
 function replaceMessage(message) {
@@ -254,12 +405,17 @@ messageForm.addEventListener("submit", (event) => {
 
   messageInput.value = "";
   const attachment = state.attachment;
+  const quote = state.quote;
   clearAttachment();
-  state.socket.emit("message:send", { body, attachment }, (result) => {
+  clearQuote();
+  closeEmojiPanel();
+  state.socket.emit("message:send", { body, attachment, quote }, (result) => {
     if (!result?.ok) {
       messageInput.value = body;
       state.attachment = attachment;
+      state.quote = quote;
       updateAttachmentPreview();
+      updateReplyPreview();
       statusText.textContent = result?.error || "发送失败。";
     }
   });
@@ -277,8 +433,47 @@ logoutButton.addEventListener("click", () => {
   showLogin();
 });
 
+contextMenu.addEventListener("click", (event) => {
+  const action = event.target.closest("button")?.dataset.action;
+  const message = state.contextMessage;
+
+  if (!action || !message) {
+    return;
+  }
+
+  if (action === "quote") {
+    quoteMessage(message);
+  }
+  if (action === "recall") {
+    recallMessage(message.id);
+  }
+  if (action === "delete") {
+    deleteMessage(message.id);
+  }
+  closeContextMenu();
+});
+
+document.addEventListener("click", (event) => {
+  if (!contextMenu.classList.contains("hidden") && !contextMenu.contains(event.target)) {
+    closeContextMenu();
+  }
+  if (
+    !emojiPanel.classList.contains("hidden") &&
+    !emojiPanel.contains(event.target) &&
+    event.target !== emojiButton
+  ) {
+    closeEmojiPanel();
+  }
+});
+
 attachButton.addEventListener("click", () => {
+  closeEmojiPanel();
   fileInput.click();
+});
+
+emojiButton.addEventListener("click", () => {
+  closeContextMenu();
+  emojiPanel.classList.toggle("hidden");
 });
 
 fileInput.addEventListener("change", async () => {
@@ -338,4 +533,5 @@ function clearAttachment() {
   updateAttachmentPreview();
 }
 
+renderEmojiPanel();
 boot();

@@ -18,6 +18,9 @@ function createSqliteStore(databasePath) {
       attachment_name TEXT,
       attachment_type TEXT,
       attachment_data TEXT,
+      quote_message_id TEXT,
+      quote_sender_name TEXT,
+      quote_body TEXT,
       recalled_at TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -33,6 +36,9 @@ function createSqliteStore(databasePath) {
     "ALTER TABLE messages ADD COLUMN attachment_name TEXT",
     "ALTER TABLE messages ADD COLUMN attachment_type TEXT",
     "ALTER TABLE messages ADD COLUMN attachment_data TEXT",
+    "ALTER TABLE messages ADD COLUMN quote_message_id TEXT",
+    "ALTER TABLE messages ADD COLUMN quote_sender_name TEXT",
+    "ALTER TABLE messages ADD COLUMN quote_body TEXT",
     "ALTER TABLE messages ADD COLUMN recalled_at TEXT",
   ]) {
     try {
@@ -48,6 +54,9 @@ function createSqliteStore(databasePath) {
            attachment_name AS attachmentName,
            attachment_type AS attachmentType,
            attachment_data AS attachmentData,
+           quote_message_id AS quoteMessageId,
+           quote_sender_name AS quoteSenderName,
+           quote_body AS quoteBody,
            recalled_at AS recalledAt,
            created_at AS createdAt
     FROM messages
@@ -56,8 +65,11 @@ function createSqliteStore(databasePath) {
     LIMIT ?
   `);
   const insertMessage = db.prepare(`
-    INSERT INTO messages (sender_id, sender_name, body, attachment_name, attachment_type, attachment_data)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO messages (
+      sender_id, sender_name, body, attachment_name, attachment_type, attachment_data,
+      quote_message_id, quote_sender_name, quote_body
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const selectMessage = db.prepare(`
     SELECT id,
@@ -67,6 +79,9 @@ function createSqliteStore(databasePath) {
            attachment_name AS attachmentName,
            attachment_type AS attachmentType,
            attachment_data AS attachmentData,
+           quote_message_id AS quoteMessageId,
+           quote_sender_name AS quoteSenderName,
+           quote_body AS quoteBody,
            recalled_at AS recalledAt,
            created_at AS createdAt
     FROM messages
@@ -87,14 +102,17 @@ function createSqliteStore(databasePath) {
     async listMessages(userId, limit) {
       return selectMessages.all(userId, limit).reverse();
     },
-    async createMessage(user, body, attachment) {
+    async createMessage(user, body, attachment, quote) {
       const result = insertMessage.run(
         user.id,
         user.displayName,
         body,
         attachment?.name || null,
         attachment?.type || null,
-        attachment?.data || null
+        attachment?.data || null,
+        quote?.messageId || null,
+        quote?.senderName || null,
+        quote?.body || null
       );
       return selectMessage.get(result.lastInsertRowid);
     },
@@ -126,6 +144,9 @@ function createPostgresStore(databaseUrl) {
           attachment_name TEXT,
           attachment_type TEXT,
           attachment_data TEXT,
+          quote_message_id TEXT,
+          quote_sender_name TEXT,
+          quote_body TEXT,
           recalled_at TIMESTAMPTZ,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
@@ -142,6 +163,9 @@ function createPostgresStore(databaseUrl) {
           ADD COLUMN IF NOT EXISTS attachment_name TEXT,
           ADD COLUMN IF NOT EXISTS attachment_type TEXT,
           ADD COLUMN IF NOT EXISTS attachment_data TEXT,
+          ADD COLUMN IF NOT EXISTS quote_message_id TEXT,
+          ADD COLUMN IF NOT EXISTS quote_sender_name TEXT,
+          ADD COLUMN IF NOT EXISTS quote_body TEXT,
           ADD COLUMN IF NOT EXISTS recalled_at TIMESTAMPTZ;
       `);
     },
@@ -154,6 +178,9 @@ function createPostgresStore(databaseUrl) {
                 attachment_name AS "attachmentName",
                 attachment_type AS "attachmentType",
                 attachment_data AS "attachmentData",
+                quote_message_id AS "quoteMessageId",
+                quote_sender_name AS "quoteSenderName",
+                quote_body AS "quoteBody",
                 recalled_at AS "recalledAt",
                 created_at AS "createdAt"
          FROM messages
@@ -166,10 +193,13 @@ function createPostgresStore(databaseUrl) {
       );
       return result.rows.reverse();
     },
-    async createMessage(user, body, attachment) {
+    async createMessage(user, body, attachment, quote) {
       const result = await pool.query(
-        `INSERT INTO messages (sender_id, sender_name, body, attachment_name, attachment_type, attachment_data)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO messages (
+           sender_id, sender_name, body, attachment_name, attachment_type, attachment_data,
+           quote_message_id, quote_sender_name, quote_body
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING id::text AS "id",
                    sender_id AS "senderId",
                    sender_name AS "senderName",
@@ -177,6 +207,9 @@ function createPostgresStore(databaseUrl) {
                    attachment_name AS "attachmentName",
                    attachment_type AS "attachmentType",
                    attachment_data AS "attachmentData",
+                   quote_message_id AS "quoteMessageId",
+                   quote_sender_name AS "quoteSenderName",
+                   quote_body AS "quoteBody",
                    recalled_at AS "recalledAt",
                    created_at AS "createdAt"`,
         [
@@ -186,6 +219,9 @@ function createPostgresStore(databaseUrl) {
           attachment?.name || null,
           attachment?.type || null,
           attachment?.data || null,
+          quote?.messageId || null,
+          quote?.senderName || null,
+          quote?.body || null,
         ]
       );
       return result.rows[0];
@@ -206,6 +242,9 @@ function createPostgresStore(databaseUrl) {
                    attachment_name AS "attachmentName",
                    attachment_type AS "attachmentType",
                    attachment_data AS "attachmentData",
+                   quote_message_id AS "quoteMessageId",
+                   quote_sender_name AS "quoteSenderName",
+                   quote_body AS "quoteBody",
                    recalled_at AS "recalledAt",
                    created_at AS "createdAt"`,
         [messageId, user.id]

@@ -186,6 +186,7 @@ button:hover {
   display: grid;
   gap: 4px;
   max-width: min(76%, 480px);
+  position: relative;
 }
 
 .message.mine {
@@ -194,6 +195,10 @@ button:hover {
 
 .message.theirs {
   align-self: flex-start;
+}
+
+.message.highlight .bubble {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.24);
 }
 
 .meta {
@@ -223,6 +228,36 @@ button:hover {
   background: #f3f4f6;
   color: var(--muted);
   font-style: italic;
+}
+
+.quote-card {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0 0 8px;
+  border-left: 3px solid rgba(255, 255, 255, 0.55);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.18);
+  color: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow: hidden;
+  padding: 7px 8px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quote-card:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.theirs .quote-card,
+.recalled .quote-card {
+  border-left-color: var(--accent);
+  background: #fff;
+  color: var(--muted);
 }
 
 .attachment {
@@ -256,34 +291,9 @@ button:hover {
   padding: 8px 10px;
 }
 
-.actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
-.message.theirs .actions {
-  justify-content: flex-start;
-}
-
-.action-button {
-  height: auto;
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 600;
-  padding: 0;
-}
-
-.action-button:hover {
-  background: transparent;
-  color: var(--accent);
-}
-
 .composer {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr auto auto;
   gap: 10px;
   border-top: 1px solid var(--line);
   padding: 14px;
@@ -295,7 +305,7 @@ button:hover {
 
 .attach-button {
   grid-column: 1;
-  grid-row: 1;
+  grid-row: 2;
   width: 44px;
   padding: 0;
   font-size: 22px;
@@ -304,17 +314,25 @@ button:hover {
 
 .composer textarea {
   grid-column: 2;
-  grid-row: 1;
+  grid-row: 2;
+}
+
+.emoji-button {
+  grid-column: 3;
+  grid-row: 2;
+  width: 44px;
+  padding: 0;
+  font-size: 20px;
 }
 
 .composer > button[type="submit"] {
-  grid-column: 3;
-  grid-row: 1;
+  grid-column: 4;
+  grid-row: 2;
 }
 
+.reply-preview,
 .attachment-preview {
   grid-column: 1 / -1;
-  grid-row: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -327,11 +345,78 @@ button:hover {
   padding: 8px 10px;
 }
 
+.reply-preview {
+  grid-row: 1;
+  border-left: 3px solid var(--accent);
+}
+
+.attachment-preview {
+  grid-row: 3;
+}
+
+.reply-preview span,
+.attachment-preview span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reply-preview button,
 .attachment-preview button {
   height: auto;
   background: transparent;
   color: var(--muted);
   padding: 0;
+}
+
+.emoji-panel {
+  grid-column: 1 / -1;
+  grid-row: 4;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px;
+}
+
+.emoji-panel button {
+  height: 36px;
+  border-radius: 6px;
+  background: #f9fafb;
+  color: var(--text);
+  font-size: 20px;
+  padding: 0;
+}
+
+.emoji-panel button:hover {
+  background: #eef2ff;
+}
+
+.context-menu {
+  position: fixed;
+  z-index: 20;
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18);
+}
+
+.context-menu button {
+  height: 40px;
+  border-radius: 0;
+  background: #fff;
+  color: var(--text);
+  font-size: 14px;
+  padding: 0 16px;
+}
+
+.context-menu button:hover {
+  background: #f3f4f6;
 }
 
 .hidden {
@@ -402,16 +487,21 @@ button:hover {
   }
 
   .composer {
-    grid-template-columns: 42px minmax(0, 1fr) 62px;
+    grid-template-columns: 42px minmax(0, 1fr) 42px 58px;
     align-items: end;
     gap: 8px;
     padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
   }
 
   .composer button,
-  .attach-button {
+  .attach-button,
+  .emoji-button {
     height: 42px;
     padding: 0;
+  }
+
+  .emoji-panel {
+    grid-template-columns: repeat(7, 1fr);
   }
 
   textarea {

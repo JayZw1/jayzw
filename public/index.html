@@ -40,13 +40,22 @@
         <div class="messages" id="messages"></div>
 
         <form class="composer" id="messageForm">
+          <div class="reply-preview hidden" id="replyPreview"></div>
           <input class="file-input" id="fileInput" type="file" />
           <button class="attach-button" id="attachButton" type="button" title="添加附件">+</button>
           <textarea id="messageInput" placeholder="输入消息..." maxlength="1000" rows="1"></textarea>
+          <button class="emoji-button" id="emojiButton" type="button" title="表情">☺</button>
           <div class="attachment-preview hidden" id="attachmentPreview"></div>
+          <div class="emoji-panel hidden" id="emojiPanel"></div>
           <button type="submit">发送</button>
         </form>
       </section>
+
+      <div class="context-menu hidden" id="contextMenu" role="menu">
+        <button type="button" data-action="quote">引用</button>
+        <button type="button" data-action="recall">撤回</button>
+        <button type="button" data-action="delete">删除</button>
+      </div>
     </main>
 
     <script src="/socket.io/socket.io.js"></script>

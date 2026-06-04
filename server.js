@@ -132,6 +132,22 @@ function cleanAttachment(rawAttachment) {
   return { name, type, data };
 }
 
+function cleanQuote(rawQuote) {
+  if (!rawQuote) {
+    return null;
+  }
+
+  const messageId = String(rawQuote.messageId || "").trim();
+  const senderName = String(rawQuote.senderName || "").trim().slice(0, 80);
+  const body = String(rawQuote.body || "").trim().slice(0, 180);
+
+  if (!messageId || !senderName || !body) {
+    return null;
+  }
+
+  return { messageId, senderName, body };
+}
+
 io.use((socket, next) => {
   const token = socket.handshake.auth?.token;
   const user = token ? verifyToken(token) : null;
@@ -151,6 +167,7 @@ io.on("connection", (socket) => {
   socket.on("message:send", async (payload, ack) => {
     const body = String(payload?.body || "").trim();
     let attachment = null;
+    const quote = cleanQuote(payload?.quote);
 
     try {
       attachment = cleanAttachment(payload?.attachment);
@@ -165,7 +182,7 @@ io.on("connection", (socket) => {
     }
 
     try {
-      const message = await store.createMessage(socket.user, body, attachment);
+      const message = await store.createMessage(socket.user, body, attachment, quote);
       io.emit("message:new", message);
       ack?.({ ok: true, message });
     } catch {
