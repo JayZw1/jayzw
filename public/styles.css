@@ -610,14 +610,16 @@ button:hover {
 
 .call-controls {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 10px;
 }
 
+#declineCallButton,
 #endCallButton {
   background: #dc2626;
 }
 
+#declineCallButton:hover,
 #endCallButton:hover {
   background: #b91c1c;
 }

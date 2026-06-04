@@ -436,18 +436,47 @@ io.on("connection", (socket) => {
     });
   });
 
+  socket.on("call:decline", async (payload) => {
+    const mode = payload?.mode === "video" ? "video" : "audio";
+    const label = mode === "video" ? "视频通话" : "语音通话";
+    const body = `${label} 对方已拒绝`;
+
+    socket.broadcast.emit("call:decline", {
+      from: publicUser(socket.user),
+      mode,
+    });
+
+    try {
+      const message = await store.createMessage(socket.user, body, null, null);
+      io.emit("message:new", message);
+    } catch {}
+  });
+
   socket.on("call:end", async (payload) => {
     const mode = payload?.mode === "video" ? "video" : "audio";
+    const connected = Boolean(payload?.connected);
+    const reason = payload?.reason === "timeout" ? "timeout" : "ended";
     const minutes = Math.max(0, Math.ceil(Number(payload?.seconds || 0) / 60));
     const hoursPart = Math.floor(minutes / 60);
     const minutesPart = minutes % 60;
     const label = mode === "video" ? "视频通话" : "语音通话";
-    const body = `${label} ${hoursPart}小时${minutesPart}分钟`;
+    const body = connected
+      ? `${label} ${hoursPart}小时${minutesPart}分钟`
+      : `${label} ${reason === "timeout" ? "对方无响应" : "未接通"}`;
+
+    if (reason === "timeout") {
+      socket.broadcast.emit("call:timeout", {
+        from: publicUser(socket.user),
+        mode,
+      });
+    }
 
     socket.broadcast.emit("call:end", {
       from: publicUser(socket.user),
       mode,
       seconds: Number(payload?.seconds || 0),
+      reason,
+      connected,
     });
 
     try {

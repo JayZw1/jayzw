@@ -51,6 +51,7 @@ const callStatus = document.querySelector("#callStatus");
 const localVideo = document.querySelector("#localVideo");
 const remoteVideo = document.querySelector("#remoteVideo");
 const acceptCallButton = document.querySelector("#acceptCallButton");
+const declineCallButton = document.querySelector("#declineCallButton");
 const endCallButton = document.querySelector("#endCallButton");
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 let currentSticker = null;
@@ -62,6 +63,8 @@ let callStartedAt = null;
 let pendingIceCandidates = [];
 let disconnectTimer = null;
 let callEnded = false;
+let outgoingCallTimer = null;
+let callConnected = false;
 const EMOJIS = [
   "😀",
   "😄",
@@ -516,6 +519,10 @@ function createPeerConnection() {
     remoteVideo.srcObject = stream;
     remoteVideo.muted = false;
     remoteVideo.volume = 1;
+    callConnected = true;
+    if (!callStartedAt) {
+      callStartedAt = Date.now();
+    }
     callStatus.textContent = currentCallMode === "video" ? "视频通话中" : "语音通话中";
     remoteVideo.play().catch(() => {
       callStatus.textContent = "已接通，点击画面可开启声音";
@@ -523,6 +530,10 @@ function createPeerConnection() {
   };
   pc.onconnectionstatechange = () => {
     if (pc.connectionState === "connected") {
+      callConnected = true;
+      if (!callStartedAt) {
+        callStartedAt = Date.now();
+      }
       clearTimeout(disconnectTimer);
       disconnectTimer = null;
       callStatus.textContent = currentCallMode === "video" ? "视频通话中" : "语音通话中";
@@ -560,11 +571,13 @@ async function startCall(mode) {
   }
 
   currentCallMode = mode;
-  callStartedAt = Date.now();
+  callStartedAt = null;
+  callConnected = false;
   callEnded = false;
   pendingIceCandidates = [];
   callPanel.classList.remove("hidden");
   acceptCallButton.classList.add("hidden");
+  declineCallButton.classList.add("hidden");
   callStatus.textContent = mode === "video" ? "正在发起视频通话..." : "正在发起语音通话...";
 
   try {
@@ -584,6 +597,11 @@ async function startCall(mode) {
   const offer = await peerConnection.createOffer();
   await peerConnection.setLocalDescription(offer);
   state.socket.emit("call:offer", { mode, offer });
+  outgoingCallTimer = setTimeout(() => {
+    if (!callConnected && peerConnection) {
+      endCall(true, "timeout");
+    }
+  }, 20000);
 }
 
 async function acceptCall() {
@@ -593,11 +611,13 @@ async function acceptCall() {
 
   const { mode, offer } = pendingOffer;
   currentCallMode = mode;
-  callStartedAt = Date.now();
+  callStartedAt = null;
+  callConnected = false;
   callEnded = false;
   pendingIceCandidates = [];
   pendingOffer = null;
   acceptCallButton.classList.add("hidden");
+  declineCallButton.classList.add("hidden");
   callStatus.textContent = mode === "video" ? "视频通话中" : "语音通话中";
 
   try {
@@ -630,6 +650,7 @@ function receiveCall({ from, mode, offer }) {
   currentCallMode = mode;
   callPanel.classList.remove("hidden");
   acceptCallButton.classList.remove("hidden");
+  declineCallButton.classList.remove("hidden");
   callStatus.textContent = `${from.displayName} 邀请你${mode === "video" ? "视频通话" : "语音通话"}`;
   if ("Notification" in window && Notification.permission === "granted") {
     new Notification("碎碎念收件箱", {
@@ -646,6 +667,10 @@ async function applyAnswer({ answer }) {
 
   await peerConnection.setRemoteDescription(answer);
   await flushPendingIceCandidates();
+  clearTimeout(outgoingCallTimer);
+  outgoingCallTimer = null;
+  callConnected = true;
+  callStartedAt = Date.now();
   callStatus.textContent = currentCallMode === "video" ? "视频通话中" : "语音通话中";
 }
 
@@ -702,15 +727,36 @@ function addLocalTracks() {
   localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
 }
 
-function endCall(emit = true) {
+function declineCall() {
+  if (!pendingOffer) {
+    return;
+  }
+
+  const mode = currentCallMode || pendingOffer.mode || "audio";
+  state.socket.emit("call:decline", { mode });
+  cleanupCall();
+}
+
+function endCall(emit = true, reason = "ended") {
   if (callEnded && !peerConnection && !localStream && !pendingOffer) {
     return;
   }
 
-  callEnded = true;
-  const seconds = callStartedAt ? Math.max(0, Math.floor((Date.now() - callStartedAt) / 1000)) : 0;
+  const wasConnected = callConnected;
+  const seconds = wasConnected && callStartedAt ? Math.max(0, Math.floor((Date.now() - callStartedAt) / 1000)) : 0;
   const mode = currentCallMode || "audio";
 
+  cleanupCall();
+
+  if (emit) {
+    state.socket.emit("call:end", { mode, seconds, reason, connected: wasConnected });
+  }
+}
+
+function cleanupCall() {
+  callEnded = true;
+  clearTimeout(outgoingCallTimer);
+  outgoingCallTimer = null;
   clearTimeout(disconnectTimer);
   disconnectTimer = null;
   peerConnection?.close();
@@ -723,11 +769,10 @@ function endCall(emit = true) {
   pendingIceCandidates = [];
   callStartedAt = null;
   currentCallMode = null;
+  callConnected = false;
+  acceptCallButton.classList.add("hidden");
+  declineCallButton.classList.add("hidden");
   callPanel.classList.add("hidden");
-
-  if (emit) {
-    state.socket.emit("call:end", { mode, seconds });
-  }
 }
 
 function getMediaErrorText(error, mode) {
@@ -830,6 +875,14 @@ function connectSocket() {
   state.socket.on("call:offer", receiveCall);
   state.socket.on("call:answer", applyAnswer);
   state.socket.on("call:ice", applyIce);
+  state.socket.on("call:decline", () => {
+    statusText.textContent = "对方已拒绝通话";
+    endCall(false);
+  });
+  state.socket.on("call:timeout", () => {
+    statusText.textContent = "对方无响应";
+    endCall(false);
+  });
   state.socket.on("call:end", () => endCall(false));
 }
 
@@ -1002,6 +1055,7 @@ videoCallButton?.addEventListener("click", () => {
   startCall("video");
 });
 acceptCallButton?.addEventListener("click", acceptCall);
+declineCallButton?.addEventListener("click", declineCall);
 endCallButton?.addEventListener("click", () => endCall(true));
 importantDaysButton?.addEventListener("click", openImportantDaysPanel);
 closeImportantDaysButton?.addEventListener("click", closeImportantDaysPanel);
