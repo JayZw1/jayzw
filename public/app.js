@@ -51,6 +51,8 @@ const callPanel = document.querySelector("#callPanel");
 const callStatus = document.querySelector("#callStatus");
 const localVideo = document.querySelector("#localVideo");
 const remoteVideo = document.querySelector("#remoteVideo");
+const remoteRelayImage = document.querySelector("#remoteRelayImage");
+const remoteRelayAudio = document.querySelector("#remoteRelayAudio");
 const acceptCallButton = document.querySelector("#acceptCallButton");
 const declineCallButton = document.querySelector("#declineCallButton");
 const endCallButton = document.querySelector("#endCallButton");
@@ -66,6 +68,10 @@ let disconnectTimer = null;
 let callEnded = false;
 let outgoingCallTimer = null;
 let callConnected = false;
+let relayVideoTimer = null;
+let relayAudioRecorder = null;
+let remoteAudioQueue = [];
+let remoteAudioPlaying = false;
 const EMOJIS = [
   "😀",
   "😄",
@@ -598,7 +604,7 @@ function createPeerConnection() {
 }
 
 async function startCall(mode) {
-  if (!state.socket?.connected || peerConnection) {
+  if (!state.socket?.connected || (currentCallMode && !callEnded)) {
     statusText.textContent = state.socket?.connected ? "正在通话中" : "实时连接未恢复，暂时不能通话";
     return;
   }
@@ -629,25 +635,20 @@ async function startCall(mode) {
     return;
   }
   localVideo.srcObject = localStream;
-  peerConnection = createPeerConnection();
-  addLocalOrReceiveOnlyTracks(mode);
-
-  const offer = await peerConnection.createOffer();
-  await peerConnection.setLocalDescription(offer);
-  state.socket.emit("call:offer", { mode, offer });
+  state.socket.emit("call:offer", { mode, relay: true });
   outgoingCallTimer = setTimeout(() => {
-    if (!callConnected && peerConnection) {
+    if (!callConnected && currentCallMode) {
       endCall(true, "timeout");
     }
   }, 20000);
 }
 
 async function acceptCall() {
-  if (!pendingOffer || peerConnection) {
+  if (!pendingOffer || (currentCallMode && callConnected)) {
     return;
   }
 
-  const { mode, offer } = pendingOffer;
+  const { mode } = pendingOffer;
   currentCallMode = mode;
   callStartedAt = null;
   callConnected = false;
@@ -669,14 +670,8 @@ async function acceptCall() {
   }
 
   localVideo.srcObject = localStream;
-  peerConnection = createPeerConnection();
-
-  await peerConnection.setRemoteDescription(offer);
-  addLocalTracks();
-  await flushPendingIceCandidates();
-  const answer = await peerConnection.createAnswer();
-  await peerConnection.setLocalDescription(answer);
-  state.socket.emit("call:answer", { answer });
+  state.socket.emit("call:answer", { relay: true });
+  startRelayMedia();
 }
 
 function receiveCall({ from, mode, offer }) {
@@ -699,17 +694,16 @@ function receiveCall({ from, mode, offer }) {
 }
 
 async function applyAnswer({ answer }) {
-  if (!peerConnection || callEnded) {
+  if (callEnded || !currentCallMode) {
     return;
   }
 
-  await peerConnection.setRemoteDescription(answer);
-  await flushPendingIceCandidates();
   clearTimeout(outgoingCallTimer);
   outgoingCallTimer = null;
   callConnected = true;
   callStartedAt = Date.now();
   callStatus.textContent = currentCallMode === "video" ? "视频通话中" : "语音通话中";
+  startRelayMedia();
 }
 
 async function applyIce({ candidate }) {
@@ -765,6 +759,119 @@ function addLocalTracks() {
   localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
 }
 
+function startRelayMedia() {
+  if (callEnded || !currentCallMode) {
+    return;
+  }
+
+  callConnected = true;
+  if (!callStartedAt) {
+    callStartedAt = Date.now();
+  }
+
+  startRelayAudio();
+  startRelayVideo();
+}
+
+function startRelayVideo() {
+  if (currentCallMode !== "video" || !localStream?.getVideoTracks().length) {
+    return;
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 320;
+  canvas.height = 240;
+  const context = canvas.getContext("2d");
+
+  clearInterval(relayVideoTimer);
+  relayVideoTimer = setInterval(() => {
+    if (!localVideo.videoWidth || !localVideo.videoHeight || callEnded) {
+      return;
+    }
+
+    context.drawImage(localVideo, 0, 0, canvas.width, canvas.height);
+    state.socket.emit("call:media", {
+      kind: "video",
+      data: canvas.toDataURL("image/jpeg", 0.45),
+    });
+  }, 350);
+}
+
+function startRelayAudio() {
+  if (!localStream?.getAudioTracks().length || !window.MediaRecorder) {
+    return;
+  }
+
+  try {
+    relayAudioRecorder = new MediaRecorder(localStream, { mimeType: "audio/webm;codecs=opus" });
+  } catch {
+    try {
+      relayAudioRecorder = new MediaRecorder(localStream);
+    } catch {
+      return;
+    }
+  }
+
+  relayAudioRecorder.addEventListener("dataavailable", (event) => {
+    if (!event.data.size || callEnded) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      state.socket.emit("call:media", {
+        kind: "audio",
+        data: reader.result,
+      });
+    });
+    reader.readAsDataURL(event.data);
+  });
+  relayAudioRecorder.start(1000);
+}
+
+function receiveRelayMedia({ kind, data }) {
+  if (callEnded || !data) {
+    return;
+  }
+
+  callConnected = true;
+  if (!callStartedAt) {
+    callStartedAt = Date.now();
+  }
+
+  if (kind === "video") {
+    remoteRelayImage.src = data;
+    remoteRelayImage.classList.remove("hidden");
+    remoteVideo.classList.add("hidden");
+    callStatus.textContent = "视频通话中";
+  }
+
+  if (kind === "audio") {
+    remoteAudioQueue.push(data);
+    playNextRemoteAudio();
+  }
+}
+
+function playNextRemoteAudio() {
+  if (remoteAudioPlaying || !remoteAudioQueue.length) {
+    return;
+  }
+
+  remoteAudioPlaying = true;
+  remoteRelayAudio.src = remoteAudioQueue.shift();
+  remoteRelayAudio
+    .play()
+    .catch(() => {
+      callStatus.textContent = "已接通，点击通话窗口可开启声音";
+    })
+    .finally(() => {
+      setTimeout(() => {
+        remoteAudioPlaying = false;
+        playNextRemoteAudio();
+      }, 850);
+    });
+}
+
 function declineCall() {
   if (!pendingOffer) {
     return;
@@ -793,6 +900,14 @@ function endCall(emit = true, reason = "ended") {
 
 function cleanupCall() {
   callEnded = true;
+  clearInterval(relayVideoTimer);
+  relayVideoTimer = null;
+  if (relayAudioRecorder?.state !== "inactive") {
+    relayAudioRecorder?.stop();
+  }
+  relayAudioRecorder = null;
+  remoteAudioQueue = [];
+  remoteAudioPlaying = false;
   clearTimeout(outgoingCallTimer);
   outgoingCallTimer = null;
   clearTimeout(disconnectTimer);
@@ -803,6 +918,10 @@ function cleanupCall() {
   localStream = null;
   localVideo.srcObject = null;
   remoteVideo.srcObject = null;
+  remoteRelayImage.src = "";
+  remoteRelayImage.classList.add("hidden");
+  remoteVideo.classList.remove("hidden");
+  remoteRelayAudio.src = "";
   pendingOffer = null;
   pendingIceCandidates = [];
   callStartedAt = null;
@@ -913,15 +1032,16 @@ function connectSocket() {
   state.socket.on("call:offer", receiveCall);
   state.socket.on("call:answer", applyAnswer);
   state.socket.on("call:ice", applyIce);
+  state.socket.on("call:media", receiveRelayMedia);
   state.socket.on("call:decline", () => {
     statusText.textContent = "对方已拒绝通话";
     endCall(false);
   });
   state.socket.on("call:timeout", () => {
     statusText.textContent = "对方无响应";
-    endCall(false);
+    cleanupCall();
   });
-  state.socket.on("call:end", () => endCall(false));
+  state.socket.on("call:end", () => cleanupCall());
 }
 
 async function boot() {

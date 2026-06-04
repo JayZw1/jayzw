@@ -610,11 +610,13 @@ button:hover {
   align-items: end;
 }
 
-.video-grid video {
+.video-grid video,
+.video-grid img {
   width: 100%;
   min-height: 120px;
   border-radius: 8px;
   background: #111827;
+  object-fit: cover;
 }
 
 #localVideo {

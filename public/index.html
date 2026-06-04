@@ -12,7 +12,7 @@
         <div>
           <p class="eyebrow">Private chat</p>
           <h1>碎碎念收件箱</h1>
-          <p class="muted">只给你们两个人使用的简洁聊天页。</p>
+          <p class="muted">只有我们听得见的频率，是宇宙留出的双人位</p>
         </div>
         <form id="loginForm" class="login-form">
           <label>
@@ -95,6 +95,8 @@
           <p id="callStatus">正在通话</p>
           <div class="video-grid">
             <video id="remoteVideo" autoplay playsinline></video>
+            <img class="hidden" id="remoteRelayImage" alt="对方画面" />
+            <audio id="remoteRelayAudio" autoplay></audio>
             <video id="localVideo" autoplay muted playsinline></video>
           </div>
           <div class="call-controls">

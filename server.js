@@ -481,6 +481,21 @@ io.on("connection", (socket) => {
     });
   });
 
+  socket.on("call:media", (payload) => {
+    const kind = payload?.kind === "audio" ? "audio" : "video";
+    const data = String(payload?.data || "");
+
+    if (!data || data.length > 350000) {
+      return;
+    }
+
+    socket.broadcast.emit("call:media", {
+      from: publicUser(socket.user),
+      kind,
+      data,
+    });
+  });
+
   socket.on("call:decline", async (payload) => {
     const mode = payload?.mode === "video" ? "video" : "audio";
     const label = mode === "video" ? "视频通话" : "语音通话";
