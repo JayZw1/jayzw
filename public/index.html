@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>两个人的聊天</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="login-panel" id="loginPanel">
+        <div>
+          <p class="eyebrow">Private chat</p>
+          <h1>两个人的聊天</h1>
+          <p class="muted">只给你们两个人使用的简洁聊天页。</p>
+        </div>
+        <form id="loginForm" class="login-form">
+          <label>
+            账号
+            <input id="username" name="username" autocomplete="username" required />
+          </label>
+          <label>
+            密码
+            <input id="password" name="password" type="password" autocomplete="current-password" required />
+          </label>
+          <button type="submit">登录</button>
+          <p class="error" id="loginError" role="alert"></p>
+        </form>
+      </section>
+
+      <section class="chat-panel hidden" id="chatPanel">
+        <header class="chat-header">
+          <div>
+            <h1>两个人的聊天</h1>
+            <p id="statusText">正在连接...</p>
+          </div>
+          <button class="ghost" id="logoutButton" type="button">退出</button>
+        </header>
+
+        <div class="messages" id="messages"></div>
+
+        <form class="composer" id="messageForm">
+          <textarea id="messageInput" placeholder="输入消息..." maxlength="1000" rows="1"></textarea>
+          <button type="submit">发送</button>
+        </form>
+      </section>
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>

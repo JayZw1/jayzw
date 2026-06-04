@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: private-chat
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8080
+      - key: JWT_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: CHAT_USER_1_NAME
+        sync: false
+      - key: CHAT_USER_1_DISPLAY_NAME
+        sync: false
+      - key: CHAT_USER_1_PASSWORD
+        sync: false
+      - key: CHAT_USER_2_NAME
+        sync: false
+      - key: CHAT_USER_2_DISPLAY_NAME
+        sync: false
+      - key: CHAT_USER_2_PASSWORD
+        sync: false
