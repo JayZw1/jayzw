@@ -59,6 +59,9 @@ let localStream = null;
 let pendingOffer = null;
 let currentCallMode = null;
 let callStartedAt = null;
+let pendingIceCandidates = [];
+let disconnectTimer = null;
+let callEnded = false;
 const EMOJIS = [
   "😀",
   "😄",
@@ -496,7 +499,11 @@ async function loadTodayInfo() {
 
 function createPeerConnection() {
   const pc = new RTCPeerConnection({
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    iceServers: [
+      { urls: "stun:stun.l.google.com:19302" },
+      { urls: "stun:global.stun.twilio.com:3478" },
+      { urls: "stun:stun.cloudflare.com:3478" },
+    ],
   });
 
   pc.onicecandidate = (event) => {
@@ -505,15 +512,35 @@ function createPeerConnection() {
     }
   };
   pc.ontrack = (event) => {
-    remoteVideo.srcObject = event.streams[0];
+    const [stream] = event.streams;
+    remoteVideo.srcObject = stream;
     remoteVideo.muted = false;
     remoteVideo.volume = 1;
+    callStatus.textContent = currentCallMode === "video" ? "视频通话中" : "语音通话中";
     remoteVideo.play().catch(() => {
       callStatus.textContent = "已接通，点击画面可开启声音";
     });
   };
   pc.onconnectionstatechange = () => {
-    if (["failed", "disconnected", "closed"].includes(pc.connectionState)) {
+    if (pc.connectionState === "connected") {
+      clearTimeout(disconnectTimer);
+      disconnectTimer = null;
+      callStatus.textContent = currentCallMode === "video" ? "视频通话中" : "语音通话中";
+      return;
+    }
+
+    if (pc.connectionState === "disconnected") {
+      callStatus.textContent = "网络波动中，正在尝试恢复通话...";
+      clearTimeout(disconnectTimer);
+      disconnectTimer = setTimeout(() => {
+        if (peerConnection?.connectionState === "disconnected") {
+          endCall(false);
+        }
+      }, 60000);
+      return;
+    }
+
+    if (["failed", "closed"].includes(pc.connectionState)) {
       endCall(false);
     }
   };
@@ -534,6 +561,8 @@ async function startCall(mode) {
 
   currentCallMode = mode;
   callStartedAt = Date.now();
+  callEnded = false;
+  pendingIceCandidates = [];
   callPanel.classList.remove("hidden");
   acceptCallButton.classList.add("hidden");
   callStatus.textContent = mode === "video" ? "正在发起视频通话..." : "正在发起语音通话...";
@@ -550,7 +579,7 @@ async function startCall(mode) {
   }
   localVideo.srcObject = localStream;
   peerConnection = createPeerConnection();
-  localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
+  addLocalOrReceiveOnlyTracks(mode);
 
   const offer = await peerConnection.createOffer();
   await peerConnection.setLocalDescription(offer);
@@ -565,6 +594,8 @@ async function acceptCall() {
   const { mode, offer } = pendingOffer;
   currentCallMode = mode;
   callStartedAt = Date.now();
+  callEnded = false;
+  pendingIceCandidates = [];
   pendingOffer = null;
   acceptCallButton.classList.add("hidden");
   callStatus.textContent = mode === "video" ? "视频通话中" : "语音通话中";
@@ -581,9 +612,10 @@ async function acceptCall() {
 
   localVideo.srcObject = localStream;
   peerConnection = createPeerConnection();
-  localStream?.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
 
   await peerConnection.setRemoteDescription(offer);
+  addLocalTracks();
+  await flushPendingIceCandidates();
   const answer = await peerConnection.createAnswer();
   await peerConnection.setLocalDescription(answer);
   state.socket.emit("call:answer", { answer });
@@ -608,16 +640,22 @@ function receiveCall({ from, mode, offer }) {
 }
 
 async function applyAnswer({ answer }) {
-  if (!peerConnection) {
+  if (!peerConnection || callEnded) {
     return;
   }
 
   await peerConnection.setRemoteDescription(answer);
+  await flushPendingIceCandidates();
   callStatus.textContent = currentCallMode === "video" ? "视频通话中" : "语音通话中";
 }
 
 async function applyIce({ candidate }) {
-  if (!peerConnection || !candidate) {
+  if (!candidate || callEnded) {
+    return;
+  }
+
+  if (!peerConnection || !peerConnection.remoteDescription) {
+    pendingIceCandidates.push(candidate);
     return;
   }
 
@@ -626,10 +664,55 @@ async function applyIce({ candidate }) {
   } catch {}
 }
 
+async function flushPendingIceCandidates() {
+  if (!peerConnection?.remoteDescription || !pendingIceCandidates.length) {
+    return;
+  }
+
+  const candidates = pendingIceCandidates;
+  pendingIceCandidates = [];
+  for (const candidate of candidates) {
+    try {
+      await peerConnection.addIceCandidate(candidate);
+    } catch {}
+  }
+}
+
+function addLocalOrReceiveOnlyTracks(mode) {
+  const audioTracks = localStream?.getAudioTracks() || [];
+  const videoTracks = localStream?.getVideoTracks() || [];
+
+  audioTracks.forEach((track) => peerConnection.addTrack(track, localStream));
+  videoTracks.forEach((track) => peerConnection.addTrack(track, localStream));
+
+  if (!audioTracks.length) {
+    peerConnection.addTransceiver("audio", { direction: "recvonly" });
+  }
+
+  if (mode === "video" && !videoTracks.length) {
+    peerConnection.addTransceiver("video", { direction: "recvonly" });
+  }
+}
+
+function addLocalTracks() {
+  if (!localStream) {
+    return;
+  }
+
+  localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
+}
+
 function endCall(emit = true) {
+  if (callEnded && !peerConnection && !localStream && !pendingOffer) {
+    return;
+  }
+
+  callEnded = true;
   const seconds = callStartedAt ? Math.max(0, Math.floor((Date.now() - callStartedAt) / 1000)) : 0;
   const mode = currentCallMode || "audio";
 
+  clearTimeout(disconnectTimer);
+  disconnectTimer = null;
   peerConnection?.close();
   peerConnection = null;
   localStream?.getTracks().forEach((track) => track.stop());
@@ -637,6 +720,7 @@ function endCall(emit = true) {
   localVideo.srcObject = null;
   remoteVideo.srcObject = null;
   pendingOffer = null;
+  pendingIceCandidates = [];
   callStartedAt = null;
   currentCallMode = null;
   callPanel.classList.add("hidden");
