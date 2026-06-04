@@ -39,6 +39,9 @@ const importantDaysButton = document.querySelector("#importantDaysButton");
 const importantDaysPanel = document.querySelector("#importantDaysPanel");
 const importantDaysList = document.querySelector("#importantDaysList");
 const closeImportantDaysButton = document.querySelector("#closeImportantDaysButton");
+const todayBadge = document.querySelector("#todayBadge");
+const todayDateText = document.querySelector("#todayDateText");
+const todayFestivalText = document.querySelector("#todayFestivalText");
 const audioCallButton = document.querySelector("#audioCallButton");
 const videoCallButton = document.querySelector("#videoCallButton");
 const callMenuButton = document.querySelector("#callMenuButton");
@@ -434,6 +437,17 @@ function closeImportantDaysPanel() {
   importantDaysPanel?.classList.add("hidden");
 }
 
+function renderTodayInfo(today) {
+  if (!today || !todayBadge || !todayDateText || !todayFestivalText) {
+    return;
+  }
+
+  todayDateText.textContent = today.label || today.date || "";
+  todayFestivalText.textContent = today.festival || "";
+  todayFestivalText.hidden = !today.festival;
+  todayBadge.hidden = false;
+}
+
 async function openImportantDaysPanel() {
   importantDaysPanel?.classList.remove("hidden");
   importantDaysList.textContent = "正在计算...";
@@ -446,6 +460,7 @@ async function openImportantDaysPanel() {
       throw new Error(data.error || "重要日子加载失败。");
     }
 
+    renderTodayInfo(data.today);
     importantDaysList.innerHTML = "";
     for (const item of data.days) {
       const row = document.createElement("article");
@@ -466,6 +481,17 @@ async function openImportantDaysPanel() {
   } catch (error) {
     importantDaysList.textContent = error.message;
   }
+}
+
+async function loadTodayInfo() {
+  try {
+    const response = await api("/api/important-days");
+    const data = await response.json();
+
+    if (response.ok) {
+      renderTodayInfo(data.today);
+    }
+  } catch {}
 }
 
 function createPeerConnection() {
@@ -548,14 +574,14 @@ async function acceptCall() {
       audio: true,
       video: mode === "video",
     });
-  } catch (error) {
-    callStatus.textContent = getMediaErrorText(error, mode);
-    setTimeout(() => endCall(false), 1400);
-    return;
+  } catch {
+    localStream = null;
+    callStatus.textContent = "本机无可用麦克风/摄像头，正在只接收对方声音和画面";
   }
+
   localVideo.srcObject = localStream;
   peerConnection = createPeerConnection();
-  localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
+  localStream?.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
 
   await peerConnection.setRemoteDescription(offer);
   const answer = await peerConnection.createAnswer();
@@ -739,6 +765,7 @@ async function boot() {
 
     state.user = data.user;
     showChat();
+    await loadTodayInfo();
     await loadMessages();
     connectSocket();
   } catch {
@@ -772,6 +799,7 @@ loginForm.addEventListener("submit", async (event) => {
   localStorage.setItem("chat_token", data.token);
   loginForm.reset();
   showChat();
+  await loadTodayInfo();
   await loadMessages();
   connectSocket();
 });

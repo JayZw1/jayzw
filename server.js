@@ -120,8 +120,14 @@ app.get("/api/messages", requireAuth, async (req, res) => {
 });
 
 app.get("/api/important-days", requireAuth, (req, res) => {
+  const today = todayInChina();
+
   res.json({
-    today: formatYmd(todayInChina()),
+    today: {
+      date: formatYmd(today),
+      label: formatChineseDate(today),
+      festival: getFestival(today),
+    },
     days: [
       buildSolarDay("结婚纪念日", "公历3月2日", 3, 2),
       buildLunarDay("zw's birthday", "农历2月16日", 2, 16),
@@ -275,6 +281,16 @@ function todayInChina() {
 
 function formatYmd(date) {
   return `${date.year}-${String(date.month).padStart(2, "0")}-${String(date.day).padStart(2, "0")}`;
+}
+
+function formatChineseDate(date) {
+  return `${date.year}年${date.month}月${date.day}日`;
+}
+
+function getFestival(date) {
+  const solar = Solar.fromYmd(date.year, date.month, date.day);
+  const names = [...solar.getFestivals(), ...solar.getLunar().getFestivals()].filter(Boolean);
+  return names.length ? names.join("、") : "";
 }
 
 function compareYmd(left, right) {
