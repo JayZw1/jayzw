@@ -119,7 +119,7 @@ app.get("/api/messages", requireAuth, async (req, res) => {
   res.json({ messages });
 });
 
-app.get("/api/important-days", requireAuth, (req, res) => {
+app.get("/api/important-days", requireAuth, async (req, res) => {
   const today = todayInChina();
 
   res.json({
@@ -127,6 +127,7 @@ app.get("/api/important-days", requireAuth, (req, res) => {
       date: formatYmd(today),
       label: formatChineseDate(today),
       festival: getFestival(today),
+      weather: await getShundeWeather(),
     },
     days: [
       buildSolarDay("结婚纪念日", "公历3月2日", 3, 2),
@@ -291,6 +292,50 @@ function getFestival(date) {
   const solar = Solar.fromYmd(date.year, date.month, date.day);
   const names = [...solar.getFestivals(), ...solar.getLunar().getFestivals()].filter(Boolean);
   return names.length ? names.join("、") : "";
+}
+
+async function getShundeWeather() {
+  const url =
+    "https://api.open-meteo.com/v1/forecast?latitude=22.8069&longitude=113.2939&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FShanghai&forecast_days=1";
+
+  try {
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    const weatherCode = data.daily?.weather_code?.[0];
+    const min = Math.round(Number(data.daily?.temperature_2m_min?.[0]));
+    const max = Math.round(Number(data.daily?.temperature_2m_max?.[0]));
+
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      return null;
+    }
+
+    return {
+      location: "顺德",
+      summary: weatherCodeLabel(weatherCode),
+      min,
+      max,
+      label: `顺德 ${weatherCodeLabel(weatherCode)} ${min}/${max}℃`,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function weatherCodeLabel(code) {
+  if (code === 0) return "晴";
+  if ([1, 2].includes(code)) return "少云";
+  if (code === 3) return "多云";
+  if ([45, 48].includes(code)) return "雾";
+  if ([51, 53, 55, 56, 57].includes(code)) return "毛毛雨";
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return "雨";
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return "雪";
+  if ([95, 96, 99].includes(code)) return "雷雨";
+  return "天气";
 }
 
 function compareYmd(left, right) {

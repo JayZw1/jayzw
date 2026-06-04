@@ -40,6 +40,7 @@ const importantDaysPanel = document.querySelector("#importantDaysPanel");
 const importantDaysList = document.querySelector("#importantDaysList");
 const closeImportantDaysButton = document.querySelector("#closeImportantDaysButton");
 const todayBadge = document.querySelector("#todayBadge");
+const todayWeatherText = document.querySelector("#todayWeatherText");
 const todayDateText = document.querySelector("#todayDateText");
 const todayFestivalText = document.querySelector("#todayFestivalText");
 const audioCallButton = document.querySelector("#audioCallButton");
@@ -444,10 +445,12 @@ function closeImportantDaysPanel() {
 }
 
 function renderTodayInfo(today) {
-  if (!today || !todayBadge || !todayDateText || !todayFestivalText) {
+  if (!today || !todayBadge || !todayWeatherText || !todayDateText || !todayFestivalText) {
     return;
   }
 
+  todayWeatherText.textContent = today.weather?.label || "";
+  todayWeatherText.hidden = !today.weather?.label;
   todayDateText.textContent = today.label || today.date || "";
   todayFestivalText.textContent = today.festival || "";
   todayFestivalText.hidden = !today.festival;

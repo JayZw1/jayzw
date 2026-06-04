@@ -205,8 +205,13 @@ button:hover {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.2;
-  min-width: 92px;
+  min-width: 118px;
   text-align: center;
+}
+
+.today-badge strong {
+  color: var(--text);
+  font-size: 12px;
 }
 
 .today-badge small {
