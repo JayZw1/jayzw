@@ -1502,16 +1502,26 @@ button:hover {
   body.composer-keyboard-open .composer {
     position: fixed;
     right: 0;
-    bottom: max(var(--composer-bottom, 0px), env(safe-area-inset-bottom));
+    bottom: env(safe-area-inset-bottom);
     left: 0;
     z-index: 30;
     background: #fff;
     box-shadow: 0 -10px 24px rgba(15, 23, 42, 0.08);
+    transform: translateY(calc(-1 * var(--composer-lift, 0px)));
   }
 
   body.composer-keyboard-open .messages {
-    padding-bottom: calc(var(--composer-height, 68px) + 8px);
-    scroll-padding-bottom: calc(var(--composer-height, 68px) + 8px);
+    padding-bottom: calc(var(--composer-height, 68px) + var(--composer-lift, 0px) + 8px);
+    scroll-padding-bottom: calc(var(--composer-height, 68px) + var(--composer-lift, 0px) + 8px);
+  }
+
+  body.ios-composer-keyboard-open .composer {
+    transform: translateY(-190px);
+  }
+
+  body.ios-composer-keyboard-open .messages {
+    padding-bottom: calc(var(--composer-height, 68px) + 198px);
+    scroll-padding-bottom: calc(var(--composer-height, 68px) + 198px);
   }
 
   body.food-keyboard-open .food-panel {

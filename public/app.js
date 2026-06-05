@@ -134,6 +134,7 @@ let typingStopTimer = null;
 let typingIndicatorTimer = null;
 let savedStatusText = "";
 let lastResumeRefreshAt = 0;
+const isIOSLike = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 const EMOJIS = [
   "😀",
   "😄",
@@ -241,15 +242,16 @@ function syncViewportHeight() {
     ? Math.max(0, baseViewportHeight - height - offsetTop)
     : 0;
   const composerHeight = Math.ceil(messageForm?.getBoundingClientRect().height || 68);
-  const composerBottom = composerFocused ? Math.min(180, Math.max(148, keyboardBottom - 54)) : 0;
+  const composerLift = composerFocused ? Math.min(220, Math.max(138, keyboardBottom - 24)) : 0;
 
   document.documentElement.style.setProperty("--app-height", `${height}px`);
   document.documentElement.style.setProperty("--visual-offset-top", `${offsetTop}px`);
   document.documentElement.style.setProperty("--keyboard-bottom", `${keyboardBottom}px`);
-  document.documentElement.style.setProperty("--composer-bottom", `${composerBottom}px`);
+  document.documentElement.style.setProperty("--composer-lift", `${composerLift}px`);
   document.documentElement.style.setProperty("--composer-height", `${composerHeight}px`);
   document.body.classList.toggle("keyboard-open", anyKeyboardFocused);
   document.body.classList.toggle("composer-keyboard-open", composerFocused);
+  document.body.classList.toggle("ios-composer-keyboard-open", composerFocused && isIOSLike);
   document.body.classList.toggle("food-keyboard-open", foodFocused);
   document.body.classList.toggle("food-name-keyboard-open", foodNameFocused);
   document.body.classList.toggle("schedule-keyboard-open", scheduleFocused);
