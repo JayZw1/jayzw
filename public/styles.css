@@ -423,10 +423,12 @@ button:hover {
 
 .message.mine {
   align-self: flex-end;
+  justify-items: end;
 }
 
 .message.theirs {
   align-self: flex-start;
+  justify-items: start;
 }
 
 .message.highlight .bubble {
@@ -443,6 +445,7 @@ button:hover {
 }
 
 .bubble {
+  justify-self: start;
   border-radius: 8px;
   background: var(--bubble);
   line-height: 1.5;
@@ -455,6 +458,7 @@ button:hover {
 }
 
 .mine .bubble {
+  justify-self: end;
   background: var(--mine);
   color: #fff;
 }
