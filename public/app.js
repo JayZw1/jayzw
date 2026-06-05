@@ -277,7 +277,6 @@ function syncViewportHeight() {
   document.body.classList.toggle("message-search-keyboard-open", messageSearchFocused);
   document.body.classList.toggle("diary-keyboard-open", diaryFocused);
   syncSparseMessagesClass();
-  syncSparseComposerNudge(composerFocused, height, offsetTop, keyboardBottom);
 }
 
 function syncViewportSoon() {
@@ -363,22 +362,6 @@ function syncSparseMessagesClass() {
 
 function getRenderedMessageCount() {
   return messagesEl.querySelectorAll(".message[data-message-id]").length;
-}
-
-function syncSparseComposerNudge(composerFocused, viewportHeight, offsetTop, keyboardBottom) {
-  const isSparseComposer = composerFocused && getRenderedMessageCount() < 3;
-  document.documentElement.style.setProperty("--sparse-composer-nudge", "0px");
-
-  if (!isSparseComposer) {
-    return;
-  }
-
-  const composerRect = messageForm.getBoundingClientRect();
-  const viewportBottom = viewportHeight + offsetTop;
-  const emptyGap = viewportBottom - composerRect.bottom;
-  const maxNudge = Math.max(0, keyboardBottom) + 80;
-  const nudge = emptyGap > 8 ? Math.min(emptyGap, maxNudge) : 0;
-  document.documentElement.style.setProperty("--sparse-composer-nudge", `${Math.round(nudge)}px`);
 }
 
 function api(path, options = {}) {

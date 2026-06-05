@@ -1928,11 +1928,6 @@ button.attachment {
     transform: translateY(-5px);
   }
 
-  body.sparse-messages.composer-keyboard-open .chat-panel,
-  body.sparse-messages.ios-composer-keyboard-open .chat-panel {
-    transform: translateY(var(--sparse-composer-nudge, 0px));
-  }
-
   body.composer-keyboard-open .messages {
     padding-bottom: 16px;
     scroll-padding-bottom: 16px;
