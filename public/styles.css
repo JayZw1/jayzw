@@ -778,7 +778,7 @@ button:hover {
 
 .diary-card {
   width: min(100%, 460px);
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto minmax(0, 1fr);
   max-height: calc(var(--app-height, 100dvh) - 36px);
   min-height: 0;
 }
@@ -813,6 +813,85 @@ button:hover {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-right: 4px;
+}
+
+.diary-calendar {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f9fafb;
+  padding: 10px;
+}
+
+.diary-calendar-head {
+  display: grid;
+  grid-template-columns: 34px 1fr 34px;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.diary-calendar-head strong {
+  color: var(--text);
+  font-size: 15px;
+}
+
+.diary-month-button {
+  width: 34px;
+  height: 30px;
+  padding: 0;
+  font-size: 18px;
+}
+
+.diary-weekdays,
+.diary-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.diary-weekdays span {
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.diary-calendar-empty {
+  min-height: 42px;
+}
+
+.diary-date-button {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 1px;
+  min-width: 0;
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  padding: 0;
+  font-size: 13px;
+}
+
+.diary-date-button.selected {
+  border-color: var(--accent);
+  background: #eff6ff;
+  color: var(--accent);
+}
+
+.diary-date-button small {
+  color: #dc2626;
+  font-size: 9px;
+  line-height: 1;
+}
+
+.diary-selected-date {
+  margin: -2px 0 0;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .diary-form {
@@ -1423,7 +1502,7 @@ button:hover {
   body.composer-keyboard-open .composer {
     position: fixed;
     right: 0;
-    bottom: env(safe-area-inset-bottom);
+    bottom: max(var(--composer-bottom, 0px), env(safe-area-inset-bottom));
     left: 0;
     z-index: 30;
     background: #fff;
@@ -1550,6 +1629,21 @@ button:hover {
     width: calc(100% - 20px);
     max-height: calc(var(--app-height, 100dvh) - max(var(--keyboard-bottom, 0px), env(safe-area-inset-bottom)) - 20px);
     overflow-y: auto;
+  }
+
+  .diary-calendar {
+    padding: 8px;
+  }
+
+  .diary-weekdays,
+  .diary-calendar-grid {
+    gap: 4px;
+  }
+
+  .diary-date-button,
+  .diary-calendar-empty {
+    height: 36px;
+    min-height: 36px;
   }
 
   .composer button,

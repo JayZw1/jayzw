@@ -2,7 +2,10 @@
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
     <title>碎碎念收件箱</title>
     <meta name="theme-color" content="#2563eb" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -170,10 +173,28 @@
             <h2>我们的日记</h2>
             <button class="ghost icon-control" id="closeDiaryButton" type="button" title="关闭">×</button>
           </div>
+          <div class="diary-calendar">
+            <div class="diary-calendar-head">
+              <button class="ghost diary-month-button" id="prevDiaryMonthButton" type="button">‹</button>
+              <strong id="diaryMonthTitle"></strong>
+              <button class="ghost diary-month-button" id="nextDiaryMonthButton" type="button">›</button>
+            </div>
+            <div class="diary-weekdays">
+              <span>一</span>
+              <span>二</span>
+              <span>三</span>
+              <span>四</span>
+              <span>五</span>
+              <span>六</span>
+              <span>日</span>
+            </div>
+            <div class="diary-calendar-grid" id="diaryCalendarGrid"></div>
+          </div>
           <form class="diary-form" id="diaryForm">
             <input id="diaryInput" maxlength="120" placeholder="写下今天和对方有关的最开心的事" required />
             <button type="submit">保存</button>
           </form>
+          <p class="diary-selected-date" id="diarySelectedDate"></p>
           <div class="diary-list" id="diaryList">正在加载...</div>
         </div>
       </div>

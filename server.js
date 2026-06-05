@@ -391,7 +391,7 @@ app.delete("/api/schedule-items/:id", requireAuth, async (req, res) => {
 });
 
 app.get("/api/diary-entries", requireAuth, async (req, res) => {
-  const limit = Math.min(Math.max(Number(req.query.limit) || 80, 1), 200);
+  const limit = Math.min(Math.max(Number(req.query.limit) || 800, 1), 900);
 
   try {
     res.json({ entries: await store.listDiaryEntries(limit) });
@@ -402,14 +402,14 @@ app.get("/api/diary-entries", requireAuth, async (req, res) => {
 
 app.post("/api/diary-entries", requireAuth, async (req, res) => {
   const content = String(req.body?.content || "").trim().slice(0, 120);
-  const today = formatYmd(todayInChina());
+  const entryDate = cleanFoodDate(req.body?.entryDate) || formatYmd(todayInChina());
 
   if (!content) {
     return res.status(400).json({ error: "请写下一句话。" });
   }
 
   try {
-    const entry = await store.saveDiaryEntry(req.user, today, content);
+    const entry = await store.saveDiaryEntry(req.user, entryDate, content);
     io.emit("diary:saved", entry);
     res.json({ entry });
   } catch {

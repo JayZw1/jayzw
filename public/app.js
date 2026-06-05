@@ -12,6 +12,8 @@ const state = {
   foodItems: [],
   scheduleItems: [],
   diaryEntries: [],
+  diarySelectedDate: todayInputValue(),
+  diaryVisibleMonth: todayInputValue().slice(0, 7),
 };
 
 const loginPanel = document.querySelector("#loginPanel");
@@ -55,6 +57,11 @@ const diaryForm = document.querySelector("#diaryForm");
 const diaryInput = document.querySelector("#diaryInput");
 const diaryList = document.querySelector("#diaryList");
 const closeDiaryButton = document.querySelector("#closeDiaryButton");
+const diaryCalendarGrid = document.querySelector("#diaryCalendarGrid");
+const diaryMonthTitle = document.querySelector("#diaryMonthTitle");
+const diarySelectedDate = document.querySelector("#diarySelectedDate");
+const prevDiaryMonthButton = document.querySelector("#prevDiaryMonthButton");
+const nextDiaryMonthButton = document.querySelector("#nextDiaryMonthButton");
 const messageSearchButton = document.querySelector("#messageSearchButton");
 const messageSearchPanel = document.querySelector("#messageSearchPanel");
 const messageSearchForm = document.querySelector("#messageSearchForm");
@@ -234,10 +241,12 @@ function syncViewportHeight() {
     ? Math.max(0, baseViewportHeight - height - offsetTop)
     : 0;
   const composerHeight = Math.ceil(messageForm?.getBoundingClientRect().height || 68);
+  const composerBottom = composerFocused ? Math.max(0, keyboardBottom - 150) : 0;
 
   document.documentElement.style.setProperty("--app-height", `${height}px`);
   document.documentElement.style.setProperty("--visual-offset-top", `${offsetTop}px`);
   document.documentElement.style.setProperty("--keyboard-bottom", `${keyboardBottom}px`);
+  document.documentElement.style.setProperty("--composer-bottom", `${composerBottom}px`);
   document.documentElement.style.setProperty("--composer-height", `${composerHeight}px`);
   document.body.classList.toggle("keyboard-open", anyKeyboardFocused);
   document.body.classList.toggle("composer-keyboard-open", composerFocused);
@@ -824,6 +833,24 @@ function todayInputValue() {
   return `${year}-${month}-${day}`;
 }
 
+function parseYmd(value) {
+  const [year, month, day] = String(value || "")
+    .split("-")
+    .map((part) => Number(part));
+  return new Date(year, month - 1, day);
+}
+
+function formatDiaryDate(value) {
+  const date = parseYmd(value);
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+}
+
+function shiftMonth(ym, offset) {
+  const [year, month] = ym.split("-").map((part) => Number(part));
+  const date = new Date(year, month - 1 + offset, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
 async function openFoodPanel() {
   foodPanel?.classList.remove("hidden");
   foodDateInput.value ||= todayInputValue();
@@ -837,6 +864,8 @@ async function openSchedulePanel() {
 }
 
 async function openDiaryPanel() {
+  state.diarySelectedDate ||= todayInputValue();
+  state.diaryVisibleMonth = state.diarySelectedDate.slice(0, 7);
   diaryPanel?.classList.remove("hidden");
   await loadDiaryEntries();
 }
@@ -849,7 +878,7 @@ async function loadDiaryEntries() {
   diaryList.textContent = "正在加载...";
 
   try {
-    const response = await api("/api/diary-entries");
+    const response = await api("/api/diary-entries?limit=800");
     const data = await response.json();
 
     if (!response.ok) {
@@ -868,47 +897,68 @@ function renderDiaryEntries() {
     return;
   }
 
+  renderDiaryCalendar();
   diaryList.innerHTML = "";
+  diarySelectedDate.textContent = `${formatDiaryDate(state.diarySelectedDate)} 的日记`;
 
-  if (!state.diaryEntries.length) {
-    diaryList.textContent = "还没有写日记。";
+  const entries = state.diaryEntries.filter((entry) => entry.entryDate === state.diarySelectedDate);
+
+  if (!entries.length) {
+    diaryList.textContent = "这一天还没有写日记。";
     return;
   }
 
-  const groups = new Map();
-  for (const entry of state.diaryEntries) {
-    const group = groups.get(entry.entryDate) || [];
-    group.push(entry);
-    groups.set(entry.entryDate, group);
+  for (const entry of entries) {
+    const item = document.createElement("article");
+    item.className = "diary-item";
+    item.dataset.diaryId = entry.id;
+    item.innerHTML = `
+      <div class="diary-item-head">
+        <strong></strong>
+        <button class="ghost diary-delete-button" type="button">删除</button>
+      </div>
+      <p></p>
+    `;
+    item.querySelector("strong").textContent = entry.userName;
+    item.querySelector("p").textContent = entry.content;
+    item.querySelector("button").addEventListener("click", () => deleteDiaryEntry(entry.id));
+    diaryList.append(item);
+  }
+}
+
+function renderDiaryCalendar() {
+  if (!diaryCalendarGrid || !diaryMonthTitle) {
+    return;
   }
 
-  for (const [date, entries] of groups) {
-    const section = document.createElement("section");
-    section.className = "diary-day";
-    const title = document.createElement("h3");
-    title.textContent = formatFoodDate(date);
-    const list = document.createElement("div");
-    list.className = "diary-day-list";
+  const [year, month] = state.diaryVisibleMonth.split("-").map((part) => Number(part));
+  const firstDay = new Date(year, month - 1, 1);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const leadingEmptyDays = (firstDay.getDay() + 6) % 7;
+  const diaryDates = new Set(state.diaryEntries.map((entry) => entry.entryDate));
 
-    for (const entry of entries) {
-      const item = document.createElement("article");
-      item.className = "diary-item";
-      item.dataset.diaryId = entry.id;
-      item.innerHTML = `
-        <div class="diary-item-head">
-          <strong></strong>
-          <button class="ghost diary-delete-button" type="button">删除</button>
-        </div>
-        <p></p>
-      `;
-      item.querySelector("strong").textContent = entry.userName;
-      item.querySelector("p").textContent = entry.content;
-      item.querySelector("button").addEventListener("click", () => deleteDiaryEntry(entry.id));
-      list.append(item);
-    }
+  diaryMonthTitle.textContent = `${year}年${month}月`;
+  diaryCalendarGrid.innerHTML = "";
 
-    section.append(title, list);
-    diaryList.append(section);
+  for (let i = 0; i < leadingEmptyDays; i += 1) {
+    const empty = document.createElement("span");
+    empty.className = "diary-calendar-empty";
+    diaryCalendarGrid.append(empty);
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const button = document.createElement("button");
+    button.className = "diary-date-button";
+    button.type = "button";
+    button.classList.toggle("selected", date === state.diarySelectedDate);
+    button.innerHTML = `<span>${day}</span>${diaryDates.has(date) ? "<small>日记</small>" : ""}`;
+    button.addEventListener("click", () => {
+      state.diarySelectedDate = date;
+      state.diaryVisibleMonth = date.slice(0, 7);
+      renderDiaryEntries();
+    });
+    diaryCalendarGrid.append(button);
   }
 }
 
@@ -923,7 +973,7 @@ async function saveDiaryEntry(event) {
   try {
     const response = await api("/api/diary-entries", {
       method: "POST",
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, entryDate: state.diarySelectedDate }),
     });
     const data = await response.json();
 
@@ -2539,6 +2589,14 @@ closeWeatherButton?.addEventListener("click", closeWeatherPanel);
 diaryButton?.addEventListener("click", openDiaryPanel);
 diaryForm?.addEventListener("submit", saveDiaryEntry);
 closeDiaryButton?.addEventListener("click", closeDiaryPanel);
+prevDiaryMonthButton?.addEventListener("click", () => {
+  state.diaryVisibleMonth = shiftMonth(state.diaryVisibleMonth, -1);
+  renderDiaryEntries();
+});
+nextDiaryMonthButton?.addEventListener("click", () => {
+  state.diaryVisibleMonth = shiftMonth(state.diaryVisibleMonth, 1);
+  renderDiaryEntries();
+});
 openPasswordChangeButton?.addEventListener("click", openPasswordChangePanel);
 passwordChangeForm?.addEventListener("submit", changePassword);
 closePasswordChangeButton?.addEventListener("click", closePasswordChangePanel);
@@ -2630,6 +2688,7 @@ renderEmojiPanel();
 setEmojiTab("emoji");
 syncViewportHeight();
 window.addEventListener("resize", syncViewportSoon);
+document.addEventListener("gesturestart", (event) => event.preventDefault());
 window.addEventListener("focus", () => refreshMessagesAfterResume());
 window.addEventListener("pageshow", () => refreshMessagesAfterResume(true));
 document.addEventListener("visibilitychange", () => {
