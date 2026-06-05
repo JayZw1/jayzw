@@ -1548,11 +1548,11 @@ button:hover {
   }
 
   body.composer-keyboard-open .chat-panel {
-    transform: translateY(-9px);
+    transform: translateY(-4px);
   }
 
   body.ios-composer-keyboard-open .chat-panel {
-    transform: translateY(-10px);
+    transform: translateY(-5px);
   }
 
   body.composer-keyboard-open .messages {
