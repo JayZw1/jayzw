@@ -391,7 +391,7 @@ app.delete("/api/schedule-items/:id", requireAuth, async (req, res) => {
 });
 
 app.get("/api/diary-entries", requireAuth, async (req, res) => {
-  const limit = Math.min(Math.max(Number(req.query.limit) || 800, 1), 900);
+  const limit = Math.min(Math.max(Number(req.query.limit) || 2000, 1), 5000);
 
   try {
     res.json({ entries: await store.listDiaryEntries(limit) });
