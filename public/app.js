@@ -714,13 +714,24 @@ function renderFoodItem(item) {
 }
 
 function formatFoodDate(value) {
-  const today = todayInputValue();
-  const tomorrowDate = new Date();
-  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-  const tomorrow = `${tomorrowDate.getFullYear()}-${String(tomorrowDate.getMonth() + 1).padStart(2, "0")}-${String(tomorrowDate.getDate()).padStart(2, "0")}`;
+  const [year, month, day] = String(value || "")
+    .split("-")
+    .map((part) => Number(part));
 
-  if (value === today) return "今天";
-  if (value === tomorrow) return "明天";
+  if (!year || !month || !day) {
+    return value;
+  }
+
+  const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const targetStart = new Date(year, month - 1, day);
+  const dayDiff = Math.round((targetStart - todayStart) / 86400000);
+  const labels = ["今天", "明天", "后天", "大后天"];
+
+  if (dayDiff >= 0 && dayDiff < labels.length) {
+    return labels[dayDiff];
+  }
+
   return value;
 }
 
