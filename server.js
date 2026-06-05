@@ -417,6 +417,27 @@ app.post("/api/diary-entries", requireAuth, async (req, res) => {
   }
 });
 
+app.delete("/api/diary-entries/:id", requireAuth, async (req, res) => {
+  const id = String(req.params.id || "").trim();
+
+  if (!id) {
+    return res.status(400).json({ error: "日记不存在。" });
+  }
+
+  try {
+    const result = await store.deleteDiaryEntry(id);
+
+    if (!result) {
+      return res.status(404).json({ error: "日记不存在。" });
+    }
+
+    io.emit("diary:deleted", result);
+    res.json(result);
+  } catch {
+    res.status(500).json({ error: "删除失败，请稍后再试。" });
+  }
+});
+
 
 app.post("/api/messages", requireAuth, async (req, res) => {
   const body = String(req.body?.body || "").trim();

@@ -956,9 +956,24 @@ button:hover {
   padding: 10px 12px;
 }
 
+.diary-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .diary-item strong {
   color: var(--text);
   font-size: 13px;
+}
+
+.diary-delete-button {
+  width: 44px;
+  height: 26px;
+  padding: 0;
+  color: #dc2626;
+  font-size: 12px;
 }
 
 .diary-item p {

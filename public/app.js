@@ -861,12 +861,17 @@ function renderDiaryEntries() {
     for (const entry of entries) {
       const item = document.createElement("article");
       item.className = "diary-item";
+      item.dataset.diaryId = entry.id;
       item.innerHTML = `
-        <strong></strong>
+        <div class="diary-item-head">
+          <strong></strong>
+          <button class="ghost diary-delete-button" type="button">删除</button>
+        </div>
         <p></p>
       `;
       item.querySelector("strong").textContent = entry.userName;
       item.querySelector("p").textContent = entry.content;
+      item.querySelector("button").addEventListener("click", () => deleteDiaryEntry(entry.id));
       list.append(item);
     }
 
@@ -915,6 +920,32 @@ function upsertDiaryEntry(entry) {
       ? left.userId.localeCompare(right.userId)
       : right.entryDate.localeCompare(left.entryDate)
   );
+  renderDiaryEntries();
+}
+
+async function deleteDiaryEntry(id) {
+  if (!window.confirm("确定删除这条日记吗？")) {
+    return;
+  }
+
+  try {
+    const response = await api(`/api/diary-entries/${id}`, {
+      method: "DELETE",
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "删除失败。");
+    }
+
+    removeDiaryEntry(data.id);
+  } catch (error) {
+    statusText.textContent = error.message;
+  }
+}
+
+function removeDiaryEntry(id) {
+  state.diaryEntries = state.diaryEntries.filter((entry) => String(entry.id) !== String(id));
   renderDiaryEntries();
 }
 
@@ -2218,6 +2249,7 @@ function connectSocket() {
   state.socket.on("schedule:created", upsertScheduleItem);
   state.socket.on("schedule:deleted", removeScheduleItem);
   state.socket.on("diary:saved", upsertDiaryEntry);
+  state.socket.on("diary:deleted", ({ id }) => removeDiaryEntry(id));
   state.socket.on("call:offer", receiveCall);
   state.socket.on("call:answer", applyAnswer);
   state.socket.on("call:ice", applyIce);

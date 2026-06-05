@@ -280,6 +280,7 @@ function createSqliteStore(databasePath) {
     FROM diary_entries
     WHERE entry_date = ? AND user_id = ?
   `);
+  const deleteDiaryEntry = db.prepare("DELETE FROM diary_entries WHERE id = ?");
   const selectUserPasswordHash = db.prepare("SELECT password_hash AS passwordHash FROM user_passwords WHERE user_id = ?");
   const upsertUserPasswordHash = db.prepare(`
     INSERT INTO user_passwords (user_id, password_hash, updated_at)
@@ -407,6 +408,10 @@ function createSqliteStore(databasePath) {
     async saveDiaryEntry(user, entryDate, content) {
       upsertDiaryEntry.run(entryDate, user.id, user.displayName, content);
       return selectDiaryEntry.get(entryDate, user.id);
+    },
+    async deleteDiaryEntry(id) {
+      const result = deleteDiaryEntry.run(id);
+      return result.changes ? { id: String(id) } : null;
     },
   };
 }
@@ -844,6 +849,15 @@ function createPostgresStore(databaseUrl) {
         [entryDate, user.id, user.displayName, content]
       );
       return result.rows[0];
+    },
+    async deleteDiaryEntry(id) {
+      const result = await pool.query(
+        `DELETE FROM diary_entries
+         WHERE id = $1
+         RETURNING id::text AS "id"`,
+        [id]
+      );
+      return result.rows[0] || null;
     },
   };
 }
