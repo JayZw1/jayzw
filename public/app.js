@@ -340,6 +340,23 @@ function settleMessagesAtBottom() {
   requestAnimationFrame(jumpToLatestMessage);
 }
 
+function settleMessagesAfterKeyboardClose() {
+  syncViewportHeight();
+  settleMessagesAtBottom();
+  setTimeout(() => {
+    syncViewportHeight();
+    settleMessagesAtBottom();
+  }, 180);
+  setTimeout(() => {
+    syncViewportHeight();
+    settleMessagesAtBottom();
+  }, 420);
+  setTimeout(() => {
+    syncViewportHeight();
+    settleMessagesAtBottom();
+  }, 760);
+}
+
 function settleMessagesAtBottomIfActive() {
   if (Date.now() <= state.bottomSettleUntil) {
     jumpToLatestMessage();
@@ -3115,6 +3132,7 @@ messageInput.addEventListener("focus", syncViewportSoon);
 messageInput.addEventListener("blur", () => {
   stopLocalTyping();
   syncViewportSoon();
+  settleMessagesAfterKeyboardClose();
 });
 foodDateInput?.addEventListener("focus", syncViewportSoon);
 foodDateInput?.addEventListener("blur", syncViewportSoon);
