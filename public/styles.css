@@ -772,11 +772,21 @@ button:hover {
   font-size: 12px;
 }
 
-.food-item button {
+.food-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.food-actions button {
   width: 72px;
   height: 34px;
   padding: 0;
   font-size: 12px;
+}
+
+.food-actions [data-food-action="delete"] {
+  width: 48px;
 }
 
 .food-item.bought strong {
@@ -1033,6 +1043,14 @@ button:hover {
 
   .food-form button {
     width: 100%;
+  }
+
+  .food-item {
+    grid-template-columns: 1fr;
+  }
+
+  .food-actions {
+    justify-content: flex-end;
   }
 
   #localVideo {

@@ -197,6 +197,24 @@ app.patch("/api/food-items/:id", requireAuth, async (req, res) => {
   }
 });
 
+app.delete("/api/food-items/:id", requireAuth, async (req, res) => {
+  const id = String(req.params.id || "").trim();
+
+  try {
+    const item = await store.deleteFoodItem(id);
+
+    if (!item) {
+      return res.status(404).json({ error: "没有找到这道菜。" });
+    }
+
+    io.emit("food:deleted", { id: String(id) });
+    res.json({ ok: true, id: String(id) });
+  } catch {
+    res.status(500).json({ error: "删除失败，请稍后再试。" });
+  }
+});
+
+
 app.post("/api/messages", requireAuth, async (req, res) => {
   const body = String(req.body?.body || "").trim();
   let attachment = null;

@@ -572,13 +572,17 @@ function renderFoodItem(item) {
       <strong></strong>
       <span></span>
     </div>
-    <button class="ghost" type="button"></button>
+    <div class="food-actions">
+      <button class="ghost" type="button" data-food-action="bought"></button>
+      <button class="ghost danger-control" type="button" data-food-action="delete">删除</button>
+    </div>
   `;
   row.querySelector("strong").textContent = item.dishName;
   row.querySelector("span").textContent = `${item.createdByName || "我们"} 添加`;
-  const button = row.querySelector("button");
+  const button = row.querySelector('[data-food-action="bought"]');
   button.textContent = item.boughtAt ? "取消已买" : "已买";
   button.addEventListener("click", () => toggleFoodBought(item));
+  row.querySelector('[data-food-action="delete"]').addEventListener("click", () => deleteFoodItem(item));
   return row;
 }
 
@@ -636,6 +640,21 @@ async function toggleFoodBought(item) {
   }
 }
 
+async function deleteFoodItem(item) {
+  try {
+    const response = await api(`/api/food-items/${item.id}`, {
+      method: "DELETE",
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "删除失败。");
+    }
+  } catch (error) {
+    statusText.textContent = error.message;
+  }
+}
+
 function upsertFoodItem(item) {
   const index = state.foodItems.findIndex((current) => String(current.id) === String(item.id));
 
@@ -650,6 +669,11 @@ function upsertFoodItem(item) {
       ? Number(left.id) - Number(right.id)
       : left.plannedDate.localeCompare(right.plannedDate)
   );
+  renderFoodItems();
+}
+
+function removeFoodItem({ id }) {
+  state.foodItems = state.foodItems.filter((item) => String(item.id) !== String(id));
   renderFoodItems();
 }
 
@@ -1432,6 +1456,7 @@ function connectSocket() {
   });
   state.socket.on("food:created", upsertFoodItem);
   state.socket.on("food:updated", upsertFoodItem);
+  state.socket.on("food:deleted", removeFoodItem);
   state.socket.on("call:offer", receiveCall);
   state.socket.on("call:answer", applyAnswer);
   state.socket.on("call:ice", applyIce);

@@ -141,6 +141,7 @@ function createSqliteStore(databasePath) {
     SET bought_at = CASE WHEN ? THEN datetime('now') ELSE NULL END
     WHERE id = ?
   `);
+  const deleteFoodItem = db.prepare("DELETE FROM food_items WHERE id = ?");
 
   return {
     async init() {},
@@ -182,6 +183,11 @@ function createSqliteStore(databasePath) {
     async updateFoodItemBought(id, bought) {
       updateFoodItemBought.run(bought ? 1 : 0, id);
       return selectFoodItem.get(id);
+    },
+    async deleteFoodItem(id) {
+      const item = selectFoodItem.get(id);
+      deleteFoodItem.run(id);
+      return item || null;
     },
   };
 }
@@ -375,6 +381,15 @@ function createPostgresStore(databaseUrl) {
                    created_by_name AS "createdByName",
                    created_at AS "createdAt"`,
         [id, Boolean(bought)]
+      );
+      return result.rows[0] || null;
+    },
+    async deleteFoodItem(id) {
+      const result = await pool.query(
+        `DELETE FROM food_items
+         WHERE id = $1
+         RETURNING id::text AS "id"`,
+        [id]
       );
       return result.rows[0] || null;
     },
