@@ -1509,11 +1509,11 @@ button:hover {
   }
 
   body.composer-keyboard-open .chat-panel {
-    transform: translateY(-250px);
+    transform: translateY(-105px);
   }
 
   body.ios-composer-keyboard-open .chat-panel {
-    transform: translateY(-310px);
+    transform: translateY(-120px);
   }
 
   body.composer-keyboard-open .messages {
