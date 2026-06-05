@@ -436,48 +436,47 @@ function renderAttachment(message, bubble) {
   const isImage = message.attachmentType?.startsWith("image/");
   const isVideo = message.attachmentType?.startsWith("video/");
   const attachmentUrl = getAttachmentUrl(message);
-  const link = document.createElement("a");
-  link.className = "attachment";
-  link.href = attachmentUrl;
-  if (!isImage && !isVideo) {
-    link.download = message.attachmentName || "attachment";
+  const attachment = document.createElement(isImage || isVideo ? "button" : "a");
+  attachment.className = "attachment";
+
+  if (isImage || isVideo) {
+    attachment.type = "button";
+    attachment.addEventListener("click", () => openAttachmentViewer(message, attachmentUrl));
+  } else {
+    attachment.href = attachmentUrl;
+    attachment.download = message.attachmentName || "attachment";
+    attachment.target = "_blank";
+    attachment.rel = "noopener";
   }
-  link.target = "_blank";
-  link.rel = "noopener";
 
   if (isImage) {
     const image = document.createElement("img");
     image.alt = message.attachmentName || "附件";
     image.src = attachmentUrl;
     image.loading = "lazy";
-    link.addEventListener("click", (event) => {
-      event.preventDefault();
-      openAttachmentViewer(message, attachmentUrl);
-    });
-    link.append(image);
+    attachment.append(image);
   } else if (isVideo) {
     const video = document.createElement("video");
     video.src = attachmentUrl;
     video.controls = true;
     video.preload = "metadata";
     video.playsInline = true;
-    video.addEventListener("click", (event) => event.stopPropagation());
+    video.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openAttachmentViewer(message, attachmentUrl);
+    });
     const openLabel = document.createElement("span");
     openLabel.className = "attachment-open-label";
     openLabel.textContent = "点开视频预览";
-    link.addEventListener("click", (event) => {
-      event.preventDefault();
-      openAttachmentViewer(message, attachmentUrl);
-    });
-    link.append(video, openLabel);
+    attachment.append(video, openLabel);
   } else {
     const label = document.createElement("span");
     label.className = "attachment-file";
     label.textContent = `附件：${message.attachmentName || "下载文件"}`;
-    link.append(label);
+    attachment.append(label);
   }
 
-  bubble.append(link);
+  bubble.append(attachment);
 }
 
 function getAttachmentUrl(message) {

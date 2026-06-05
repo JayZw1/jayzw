@@ -476,6 +476,14 @@ button:hover {
   text-decoration: none;
 }
 
+button.attachment {
+  width: fit-content;
+  height: auto;
+  padding: 0;
+  border: 0;
+  text-align: left;
+}
+
 .theirs .attachment {
   background: #fff;
   color: var(--accent);
