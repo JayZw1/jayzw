@@ -1029,6 +1029,11 @@ button:hover {
     overflow-y: auto;
   }
 
+  body.food-name-keyboard-open .food-panel {
+    align-items: center;
+    padding-bottom: 18px;
+  }
+
   body.food-name-keyboard-open .food-form {
     grid-template-columns: 1fr;
   }
@@ -1038,11 +1043,26 @@ button:hover {
     display: none;
   }
 
+  body.food-name-keyboard-open .food-form {
+    position: fixed;
+    right: 10px;
+    bottom: calc(max(var(--keyboard-bottom, 0px), env(safe-area-inset-bottom)) + 10px);
+    left: 10px;
+    z-index: 45;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 -10px 24px rgba(15, 23, 42, 0.1);
+    padding: 8px;
+  }
+
   body.food-name-keyboard-open #foodNameInput {
     height: 44px;
+    font-size: 16px;
   }
 
   body.food-name-keyboard-open .food-list {
+    margin-bottom: 76px;
     max-height: 32dvh;
     overflow-y: auto;
   }

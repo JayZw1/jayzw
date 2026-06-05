@@ -85,6 +85,7 @@ let relayAudioRecorder = null;
 let remoteAudioQueue = [];
 let remoteAudioPlaying = false;
 let relayFallbackTimer = null;
+let baseViewportHeight = window.innerHeight;
 const EMOJIS = [
   "😀",
   "😄",
@@ -128,7 +129,6 @@ function syncViewportHeight() {
   const viewport = window.visualViewport;
   const height = viewport?.height || window.innerHeight;
   const offsetTop = viewport?.offsetTop || 0;
-  const keyboardBottom = Math.max(0, window.innerHeight - height - offsetTop);
   const activeElement = document.activeElement;
   const composerFocused = activeElement === messageInput;
   const foodFocused =
@@ -136,13 +136,20 @@ function syncViewportHeight() {
     !foodPanel.classList.contains("hidden") &&
     (activeElement === foodDateInput || activeElement === foodNameInput);
   const foodNameFocused = foodFocused && activeElement === foodNameInput;
+  const anyKeyboardFocused = composerFocused || foodFocused;
+  if (!anyKeyboardFocused || height > baseViewportHeight) {
+    baseViewportHeight = Math.max(baseViewportHeight, height, window.innerHeight);
+  }
+  const keyboardBottom = anyKeyboardFocused
+    ? Math.max(0, baseViewportHeight - height - offsetTop)
+    : 0;
   const composerHeight = Math.ceil(messageForm?.getBoundingClientRect().height || 68);
 
   document.documentElement.style.setProperty("--app-height", `${height}px`);
   document.documentElement.style.setProperty("--visual-offset-top", `${offsetTop}px`);
   document.documentElement.style.setProperty("--keyboard-bottom", `${keyboardBottom}px`);
   document.documentElement.style.setProperty("--composer-height", `${composerHeight}px`);
-  document.body.classList.toggle("keyboard-open", composerFocused || foodFocused);
+  document.body.classList.toggle("keyboard-open", anyKeyboardFocused);
   document.body.classList.toggle("composer-keyboard-open", composerFocused);
   document.body.classList.toggle("food-keyboard-open", foodFocused);
   document.body.classList.toggle("food-name-keyboard-open", foodNameFocused);
