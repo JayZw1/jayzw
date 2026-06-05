@@ -591,7 +591,7 @@ function renderFoodItems() {
     const section = document.createElement("section");
     section.className = "food-day";
     const title = document.createElement("h3");
-    title.textContent = formatFoodDate(date);
+    title.textContent = `${formatFoodDate(date)}买菜清单`;
     const list = document.createElement("div");
     list.className = "food-day-list";
 

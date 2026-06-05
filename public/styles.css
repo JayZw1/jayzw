@@ -712,6 +712,9 @@ button:hover {
 
 .food-card {
   width: min(100%, 460px);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  max-height: calc(var(--app-height, 100dvh) - 36px);
+  min-height: 0;
 }
 
 .schedule-card {
@@ -738,6 +741,13 @@ button:hover {
   gap: 10px;
   color: var(--muted);
   font-size: 14px;
+  min-height: 0;
+}
+
+.food-list {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
 }
 
 .food-form,
@@ -765,6 +775,13 @@ button:hover {
   gap: 8px;
 }
 
+.food-day {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f9fafb;
+  padding: 10px;
+}
+
 .food-day h3,
 .schedule-day h3 {
   margin: 0;
@@ -778,6 +795,10 @@ button:hover {
   gap: 8px;
 }
 
+.food-day-list {
+  min-height: 0;
+}
+
 .food-item,
 .schedule-item {
   display: grid;
@@ -786,6 +807,7 @@ button:hover {
   gap: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
+  background: #fff;
   padding: 10px 12px;
 }
 
