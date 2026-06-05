@@ -5,7 +5,8 @@ const state = {
   attachment: null,
   quote: null,
   contextMessage: null,
-  longPressTimer: null,
+  lastMenuTapAt: 0,
+  lastMenuTapId: null,
   renderedMessages: new Set(),
   weather: null,
   foodItems: [],
@@ -430,22 +431,29 @@ function updateMessageElement(item, message) {
 }
 
 function bindMessageMenu(item, message) {
-  item.addEventListener("contextmenu", (event) => {
+  item.addEventListener("dblclick", (event) => {
     event.preventDefault();
     openContextMenu(message, event.clientX, event.clientY);
   });
 
-  item.addEventListener("touchstart", (event) => {
-    clearTimeout(state.longPressTimer);
-    const touch = event.touches[0];
-    state.longPressTimer = setTimeout(() => {
-      openContextMenu(message, touch.clientX, touch.clientY);
-    }, 520);
+  item.addEventListener("click", (event) => {
+    const now = Date.now();
+    const isDoubleTap = state.lastMenuTapId === message.id && now - state.lastMenuTapAt < 360;
+    state.lastMenuTapAt = now;
+    state.lastMenuTapId = message.id;
+
+    if (isDoubleTap) {
+      event.preventDefault();
+      openContextMenu(message, event.clientX, event.clientY);
+      state.lastMenuTapAt = 0;
+      state.lastMenuTapId = null;
+    }
   });
 
-  item.addEventListener("touchmove", () => clearTimeout(state.longPressTimer));
-  item.addEventListener("touchend", () => clearTimeout(state.longPressTimer));
-  item.addEventListener("touchcancel", () => clearTimeout(state.longPressTimer));
+  item.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+    openContextMenu(message, event.clientX, event.clientY);
+  });
 }
 
 function openContextMenu(message, x, y) {
