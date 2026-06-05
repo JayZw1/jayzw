@@ -1014,8 +1014,9 @@ function connectSocket() {
     statusText.textContent = "实时连接失败，文字消息仍可发送";
   });
 
-  state.socket.on("presence", ({ online }) => {
-    statusText.textContent = online >= 2 ? "你们都在线" : "已连接";
+  state.socket.on("presence", ({ online, users = [] }) => {
+    const otherOnline = users.some((user) => user.id && user.id !== state.user?.id);
+    statusText.textContent = otherOnline || online >= 2 ? "你们都在线" : "已连接，对方未在线";
   });
 
   state.socket.on("message:new", (message) => {

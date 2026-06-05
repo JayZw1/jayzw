@@ -43,6 +43,7 @@ const store = createStore();
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
+const onlineSocketsByUser = new Map();
 
 app.use(compression());
 app.use((req, res, next) => {
@@ -83,6 +84,21 @@ function verifyToken(token) {
   } catch {
     return null;
   }
+}
+
+function getOnlineUsers() {
+  return users
+    .filter((user) => onlineSocketsByUser.get(user.id)?.size)
+    .map(publicUser);
+}
+
+function emitPresence() {
+  const onlineUsers = getOnlineUsers();
+
+  io.emit("presence", {
+    online: onlineUsers.length,
+    users: onlineUsers,
+  });
 }
 
 function requireAuth(req, res, next) {
@@ -402,8 +418,10 @@ io.use((socket, next) => {
 });
 
 io.on("connection", (socket) => {
-  socket.emit("presence", { online: io.engine.clientsCount });
-  socket.broadcast.emit("presence", { online: io.engine.clientsCount });
+  const userSockets = onlineSocketsByUser.get(socket.user.id) || new Set();
+  userSockets.add(socket.id);
+  onlineSocketsByUser.set(socket.user.id, userSockets);
+  emitPresence();
 
   socket.on("message:send", async (payload, ack) => {
     const body = String(payload?.body || "").trim();
@@ -546,7 +564,17 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    socket.broadcast.emit("presence", { online: io.engine.clientsCount });
+    const sockets = onlineSocketsByUser.get(socket.user.id);
+
+    if (sockets) {
+      sockets.delete(socket.id);
+
+      if (!sockets.size) {
+        onlineSocketsByUser.delete(socket.user.id);
+      }
+    }
+
+    emitPresence();
   });
 });
 
