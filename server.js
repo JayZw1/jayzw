@@ -69,6 +69,10 @@ app.use(
 app.use(express.json({ limit: "8mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
+app.get("/health", (req, res) => {
+  res.json({ ok: true, now: new Date().toISOString() });
+});
+
 function publicUser(user) {
   return {
     id: user.id,
