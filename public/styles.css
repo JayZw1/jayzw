@@ -840,9 +840,23 @@ button:hover {
   text-align: center;
 }
 
-.diary-calendar-head strong {
+.diary-month-picker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.75fr);
+  gap: 6px;
+}
+
+.diary-month-picker select {
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
   color: var(--text);
-  font-size: 15px;
+  font: inherit;
+  font-size: 13px;
+  padding: 0 6px;
 }
 
 .diary-month-button {
@@ -888,6 +902,14 @@ button:hover {
   border-color: var(--accent);
   background: #eff6ff;
   color: var(--accent);
+}
+
+.diary-date-button.disabled,
+.diary-date-button:disabled {
+  cursor: not-allowed;
+  background: #f3f4f6;
+  color: #cbd5e1;
+  opacity: 0.75;
 }
 
 .diary-date-button small {

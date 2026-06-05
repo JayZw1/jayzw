@@ -402,10 +402,15 @@ app.get("/api/diary-entries", requireAuth, async (req, res) => {
 
 app.post("/api/diary-entries", requireAuth, async (req, res) => {
   const content = String(req.body?.content || "").trim().slice(0, 120);
-  const entryDate = cleanFoodDate(req.body?.entryDate) || formatYmd(todayInChina());
+  const today = formatYmd(todayInChina());
+  const entryDate = cleanFoodDate(req.body?.entryDate) || today;
 
   if (!content) {
     return res.status(400).json({ error: "请写下一句话。" });
+  }
+
+  if (entryDate > today) {
+    return res.status(400).json({ error: "日记只能记录今天和过去的事情。" });
   }
 
   try {

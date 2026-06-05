@@ -178,7 +178,10 @@
           <div class="diary-calendar">
             <div class="diary-calendar-head">
               <button class="ghost diary-month-button" id="prevDiaryMonthButton" type="button">‹</button>
-              <strong id="diaryMonthTitle"></strong>
+              <div class="diary-month-picker" aria-label="选择日记年月">
+                <select id="diaryYearSelect" aria-label="选择年份"></select>
+                <select id="diaryMonthSelect" aria-label="选择月份"></select>
+              </div>
               <button class="ghost diary-month-button" id="nextDiaryMonthButton" type="button">›</button>
             </div>
             <div class="diary-weekdays">

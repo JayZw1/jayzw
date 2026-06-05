@@ -58,7 +58,8 @@ const diaryInput = document.querySelector("#diaryInput");
 const diaryList = document.querySelector("#diaryList");
 const closeDiaryButton = document.querySelector("#closeDiaryButton");
 const diaryCalendarGrid = document.querySelector("#diaryCalendarGrid");
-const diaryMonthTitle = document.querySelector("#diaryMonthTitle");
+const diaryYearSelect = document.querySelector("#diaryYearSelect");
+const diaryMonthSelect = document.querySelector("#diaryMonthSelect");
 const diarySelectedDate = document.querySelector("#diarySelectedDate");
 const prevDiaryMonthButton = document.querySelector("#prevDiaryMonthButton");
 const nextDiaryMonthButton = document.querySelector("#nextDiaryMonthButton");
@@ -851,6 +852,48 @@ function shiftMonth(ym, offset) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
+function compareYmd(left, right) {
+  return String(left || "").localeCompare(String(right || ""));
+}
+
+function clampDiaryMonth(ym) {
+  const today = todayInputValue();
+  const currentMonth = today.slice(0, 7);
+  return String(ym || currentMonth) > currentMonth ? currentMonth : String(ym || currentMonth);
+}
+
+function getDiaryYearRange() {
+  const currentYear = new Date().getFullYear();
+  const years = state.diaryEntries
+    .map((entry) => Number(String(entry.entryDate || "").slice(0, 4)))
+    .filter(Boolean);
+  years.push(currentYear - 1, currentYear);
+  return {
+    start: Math.min(...years),
+    end: Math.min(Math.max(...years), currentYear),
+  };
+}
+
+function syncDiarySelectedDateToMonth() {
+  state.diaryVisibleMonth = clampDiaryMonth(state.diaryVisibleMonth);
+  const today = todayInputValue();
+  const [year, month] = state.diaryVisibleMonth.split("-").map((part) => Number(part));
+  const currentDay = parseYmd(state.diarySelectedDate).getDate() || 1;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const day = String(Math.min(currentDay, daysInMonth)).padStart(2, "0");
+  state.diarySelectedDate = `${year}-${String(month).padStart(2, "0")}-${day}`;
+  if (compareYmd(state.diarySelectedDate, today) > 0) {
+    state.diarySelectedDate = today;
+    state.diaryVisibleMonth = today.slice(0, 7);
+  }
+}
+
+function setDiaryVisibleMonth(year, month) {
+  state.diaryVisibleMonth = clampDiaryMonth(`${year}-${String(month).padStart(2, "0")}`);
+  syncDiarySelectedDateToMonth();
+  renderDiaryEntries();
+}
+
 async function openFoodPanel() {
   foodPanel?.classList.remove("hidden");
   foodDateInput.value ||= todayInputValue();
@@ -865,7 +908,10 @@ async function openSchedulePanel() {
 
 async function openDiaryPanel() {
   state.diarySelectedDate ||= todayInputValue();
-  state.diaryVisibleMonth = state.diarySelectedDate.slice(0, 7);
+  if (compareYmd(state.diarySelectedDate, todayInputValue()) > 0) {
+    state.diarySelectedDate = todayInputValue();
+  }
+  state.diaryVisibleMonth = clampDiaryMonth(state.diarySelectedDate.slice(0, 7));
   diaryPanel?.classList.remove("hidden");
   await loadDiaryEntries();
 }
@@ -926,18 +972,44 @@ function renderDiaryEntries() {
   }
 }
 
-function renderDiaryCalendar() {
-  if (!diaryCalendarGrid || !diaryMonthTitle) {
+function renderDiaryMonthPicker(year, month) {
+  if (!diaryYearSelect || !diaryMonthSelect) {
     return;
   }
 
+  const { start, end } = getDiaryYearRange();
+  const today = parseYmd(todayInputValue());
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth() + 1;
+  const yearsMarkup = [];
+  for (let targetYear = start; targetYear <= end; targetYear += 1) {
+    yearsMarkup.push(`<option value="${targetYear}">${targetYear}年</option>`);
+  }
+  diaryYearSelect.innerHTML = yearsMarkup.join("");
+  diaryYearSelect.value = String(year);
+
+  const maxMonth = year === currentYear ? currentMonth : 12;
+  diaryMonthSelect.innerHTML = Array.from({ length: maxMonth }, (_, index) => {
+    const targetMonth = index + 1;
+    return `<option value="${targetMonth}">${targetMonth}月</option>`;
+  }).join("");
+  diaryMonthSelect.value = String(month);
+}
+
+function renderDiaryCalendar() {
+  if (!diaryCalendarGrid) {
+    return;
+  }
+
+  state.diaryVisibleMonth = clampDiaryMonth(state.diaryVisibleMonth);
   const [year, month] = state.diaryVisibleMonth.split("-").map((part) => Number(part));
   const firstDay = new Date(year, month - 1, 1);
   const daysInMonth = new Date(year, month, 0).getDate();
   const leadingEmptyDays = (firstDay.getDay() + 6) % 7;
   const diaryDates = new Set(state.diaryEntries.map((entry) => entry.entryDate));
+  const today = todayInputValue();
 
-  diaryMonthTitle.textContent = `${year}年${month}月`;
+  renderDiaryMonthPicker(year, month);
   diaryCalendarGrid.innerHTML = "";
 
   for (let i = 0; i < leadingEmptyDays; i += 1) {
@@ -948,12 +1020,18 @@ function renderDiaryCalendar() {
 
   for (let day = 1; day <= daysInMonth; day += 1) {
     const date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const isFutureDate = compareYmd(date, today) > 0;
     const button = document.createElement("button");
     button.className = "diary-date-button";
     button.type = "button";
+    button.disabled = isFutureDate;
     button.classList.toggle("selected", date === state.diarySelectedDate);
+    button.classList.toggle("disabled", isFutureDate);
     button.innerHTML = `<span>${day}</span>${diaryDates.has(date) ? "<small>日记</small>" : ""}`;
     button.addEventListener("click", () => {
+      if (isFutureDate) {
+        return;
+      }
       state.diarySelectedDate = date;
       state.diaryVisibleMonth = date.slice(0, 7);
       renderDiaryEntries();
@@ -2591,11 +2669,20 @@ diaryForm?.addEventListener("submit", saveDiaryEntry);
 closeDiaryButton?.addEventListener("click", closeDiaryPanel);
 prevDiaryMonthButton?.addEventListener("click", () => {
   state.diaryVisibleMonth = shiftMonth(state.diaryVisibleMonth, -1);
+  syncDiarySelectedDateToMonth();
   renderDiaryEntries();
 });
 nextDiaryMonthButton?.addEventListener("click", () => {
   state.diaryVisibleMonth = shiftMonth(state.diaryVisibleMonth, 1);
+  syncDiarySelectedDateToMonth();
   renderDiaryEntries();
+});
+diaryYearSelect?.addEventListener("change", () => {
+  setDiaryVisibleMonth(Number(diaryYearSelect.value), Number(diaryMonthSelect?.value || 1));
+});
+diaryMonthSelect?.addEventListener("change", () => {
+  const [year] = state.diaryVisibleMonth.split("-").map((part) => Number(part));
+  setDiaryVisibleMonth(Number(diaryYearSelect?.value || year), Number(diaryMonthSelect.value));
 });
 openPasswordChangeButton?.addEventListener("click", openPasswordChangePanel);
 passwordChangeForm?.addEventListener("submit", changePassword);
