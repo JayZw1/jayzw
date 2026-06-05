@@ -284,6 +284,20 @@ button:hover {
   gap: 4px;
 }
 
+.header-weather-stack {
+  display: grid;
+  align-items: start;
+  gap: 3px;
+  min-width: 0;
+}
+
+.message-search-button {
+  width: 58px;
+  height: 24px;
+  padding: 0;
+  font-size: 11px;
+}
+
 .schedule-button {
   width: 52px;
   height: 28px;
@@ -745,7 +759,9 @@ button:hover {
 }
 
 .important-days-panel,
+.message-search-panel,
 .other-feature-panel,
+.password-change-panel,
 .weather-panel,
 .food-panel,
 .schedule-panel {
@@ -759,7 +775,9 @@ button:hover {
 }
 
 .important-days-card,
+.message-search-card,
 .other-feature-card,
+.password-change-card,
 .weather-card,
 .food-card,
 .schedule-card {
@@ -804,6 +822,7 @@ button:hover {
 }
 
 .important-days-list,
+.message-search-results,
 .other-feature-list,
 .weather-list,
 .food-list,
@@ -813,6 +832,94 @@ button:hover {
   color: var(--muted);
   font-size: 14px;
   min-height: 0;
+}
+
+.message-search-card {
+  width: min(100%, 520px);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  max-height: calc(var(--app-height, 100dvh) - 36px);
+  min-height: 0;
+}
+
+.password-change-card {
+  width: min(100%, 420px);
+}
+
+.password-change-form {
+  display: grid;
+  gap: 10px;
+}
+
+.password-change-form button {
+  width: 100%;
+}
+
+.password-change-status {
+  min-height: 20px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.message-search-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 68px;
+  gap: 8px;
+}
+
+.message-search-form input,
+.message-search-form button {
+  height: 40px;
+}
+
+.message-search-form button {
+  padding: 0;
+}
+
+.message-search-summary {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.message-search-results {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+
+.message-search-result {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f9fafb;
+  color: var(--text);
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.message-search-result:hover {
+  background: #eef2ff;
+}
+
+.message-search-result strong {
+  font-size: 14px;
+}
+
+.message-search-meta,
+.message-search-preview {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message-search-preview {
+  color: var(--text);
+  font-size: 13px;
 }
 
 .other-feature-card {
@@ -1153,6 +1260,12 @@ button:hover {
     font-size: 12px;
   }
 
+  .message-search-button {
+    width: 52px;
+    height: 24px;
+    font-size: 10px;
+  }
+
   .schedule-button {
     width: 46px;
     height: 28px;
@@ -1321,6 +1434,17 @@ button:hover {
     overflow-y: auto;
   }
 
+  body.message-search-keyboard-open .message-search-panel {
+    align-items: end;
+    padding-bottom: calc(max(var(--keyboard-bottom, 0px), env(safe-area-inset-bottom)) + 10px);
+  }
+
+  body.message-search-keyboard-open .message-search-card {
+    width: calc(100% - 20px);
+    max-height: calc(var(--app-height, 100dvh) - max(var(--keyboard-bottom, 0px), env(safe-area-inset-bottom)) - 20px);
+    overflow-y: auto;
+  }
+
   .composer button,
   .attach-button,
   .call-button,
@@ -1347,11 +1471,13 @@ button:hover {
   }
 
   .food-form,
+  .message-search-form,
   .schedule-form {
     grid-template-columns: 1fr;
   }
 
   .food-form button,
+  .message-search-form button,
   .schedule-form button {
     width: 100%;
   }

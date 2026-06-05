@@ -115,16 +115,47 @@ function requireAuth(req, res, next) {
   next();
 }
 
+async function getEffectivePasswordHash(user) {
+  return (await store.getUserPasswordHash(user.id)) || user.passwordHash;
+}
+
 app.post("/api/login", async (req, res) => {
   const username = String(req.body?.username || "").trim();
   const password = String(req.body?.password || "");
   const user = users.find((item) => item.username === username);
+  const passwordHash = user ? await getEffectivePasswordHash(user) : "";
 
-  if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+  if (!user || !(await bcrypt.compare(password, passwordHash))) {
     return res.status(401).json({ error: "账号或密码不正确。" });
   }
 
   res.json({ token: signToken(user), user: publicUser(user) });
+});
+
+app.post("/api/password/change", async (req, res) => {
+  const username = String(req.body?.username || "").trim();
+  const oldPassword = String(req.body?.oldPassword || "");
+  const newPassword = String(req.body?.newPassword || "");
+  const user = users.find((item) => item.username === username);
+
+  if (!user) {
+    return res.status(401).json({ error: "账号或旧密码不正确。" });
+  }
+
+  if (newPassword.length < 4 || newPassword.length > 64) {
+    return res.status(400).json({ error: "新密码长度需要在 4 到 64 位之间。" });
+  }
+
+  const passwordHash = await getEffectivePasswordHash(user);
+
+  if (!(await bcrypt.compare(oldPassword, passwordHash))) {
+    return res.status(401).json({ error: "账号或旧密码不正确。" });
+  }
+
+  const nextHash = await bcrypt.hash(newPassword, 10);
+  await store.setUserPasswordHash(user.id, nextHash);
+  user.passwordHash = nextHash;
+  res.json({ ok: true });
 });
 
 app.get("/api/me", requireAuth, (req, res) => {
@@ -135,6 +166,38 @@ app.get("/api/messages", requireAuth, async (req, res) => {
   const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 200);
   const messages = await store.listMessages(req.user.id, limit);
   res.json({ messages });
+});
+
+app.get("/api/messages/search", requireAuth, async (req, res) => {
+  const query = String(req.query.q || "").trim().slice(0, 80);
+  const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100);
+
+  if (!query) {
+    return res.json({ messages: [] });
+  }
+
+  try {
+    const messages = await store.searchMessages(req.user.id, query, limit);
+    res.json({ messages });
+  } catch {
+    res.status(500).json({ error: "聊天记录查询失败。" });
+  }
+});
+
+app.get("/api/messages/:id", requireAuth, async (req, res) => {
+  const id = String(req.params.id || "").trim();
+
+  try {
+    const message = await store.getMessage(req.user.id, id);
+
+    if (!message) {
+      return res.status(404).json({ error: "没有找到这条消息。" });
+    }
+
+    res.json({ message });
+  } catch {
+    res.status(500).json({ error: "消息加载失败。" });
+  }
 });
 
 app.get("/api/important-days", requireAuth, async (req, res) => {

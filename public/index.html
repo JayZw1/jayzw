@@ -30,6 +30,7 @@
             <input id="password" name="password" type="password" autocomplete="current-password" required />
           </label>
           <button type="submit">登录</button>
+          <button class="ghost" id="openPasswordChangeButton" type="button">更改密码</button>
           <p class="error" id="loginError" role="alert"></p>
         </form>
       </section>
@@ -47,11 +48,14 @@
                 <button class="ghost food-button" id="foodButton" type="button">买菜</button>
                 <button class="ghost schedule-button" id="scheduleButton" type="button">行程</button>
               </div>
-              <button class="today-badge" id="todayBadge" type="button" title="查看未来天气" hidden>
-                <strong id="todayWeatherText" hidden></strong>
-                <span id="todayDateText"></span>
-                <small id="todayFestivalText" hidden></small>
-              </button>
+              <div class="header-weather-stack">
+                <button class="ghost message-search-button" id="messageSearchButton" type="button">聊天记录</button>
+                <button class="today-badge" id="todayBadge" type="button" title="查看未来天气" hidden>
+                  <strong id="todayWeatherText" hidden></strong>
+                  <span id="todayDateText"></span>
+                  <small id="todayFestivalText" hidden></small>
+                </button>
+              </div>
             </div>
             <p id="statusText">正在连接...</p>
           </div>
@@ -103,6 +107,22 @@
         <button type="button" data-action="delete">删除</button>
       </div>
 
+      <div class="password-change-panel hidden" id="passwordChangePanel">
+        <div class="password-change-card">
+          <div class="modal-title">
+            <h2>更改密码</h2>
+            <button class="ghost icon-control" id="closePasswordChangeButton" type="button" title="关闭">×</button>
+          </div>
+          <form class="password-change-form" id="passwordChangeForm">
+            <input id="passwordChangeUsername" autocomplete="username" placeholder="账号" required />
+            <input id="passwordChangeOld" type="password" autocomplete="current-password" placeholder="旧密码" required />
+            <input id="passwordChangeNew" type="password" autocomplete="new-password" placeholder="新密码" required />
+            <button type="submit">保存</button>
+          </form>
+          <p class="password-change-status" id="passwordChangeStatus"></p>
+        </div>
+      </div>
+
       <div class="call-panel hidden" id="callPanel">
         <div class="call-box">
           <p id="callStatus">正在通话</p>
@@ -137,6 +157,21 @@
             <button class="ghost icon-control" id="closeOtherFeatureButton" type="button" title="关闭">×</button>
           </div>
           <div class="other-feature-list" id="otherFeatureList"></div>
+        </div>
+      </div>
+
+      <div class="message-search-panel hidden" id="messageSearchPanel">
+        <div class="message-search-card">
+          <div class="modal-title">
+            <h2>聊天记录查询</h2>
+            <button class="ghost icon-control" id="closeMessageSearchButton" type="button" title="关闭">×</button>
+          </div>
+          <form class="message-search-form" id="messageSearchForm">
+            <input id="messageSearchInput" maxlength="80" placeholder="搜索聊天内容、附件名或发送人" />
+            <button type="submit">搜索</button>
+          </form>
+          <div class="message-search-summary" id="messageSearchSummary">输入关键词查询聊天记录。</div>
+          <div class="message-search-results" id="messageSearchResults"></div>
         </div>
       </div>
 

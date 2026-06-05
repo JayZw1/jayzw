@@ -50,6 +50,12 @@ function createSqliteStore(databasePath) {
       created_by_name TEXT NOT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS user_passwords (
+      user_id TEXT PRIMARY KEY,
+      password_hash TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
   for (const statement of [
     "ALTER TABLE messages ADD COLUMN attachment_name TEXT",
@@ -105,6 +111,48 @@ function createSqliteStore(databasePath) {
            created_at AS createdAt
     FROM messages
     WHERE id = ?
+  `);
+  const selectVisibleMessage = db.prepare(`
+    SELECT id,
+           sender_id AS senderId,
+           sender_name AS senderName,
+           body,
+           attachment_name AS attachmentName,
+           attachment_type AS attachmentType,
+           attachment_data AS attachmentData,
+           quote_message_id AS quoteMessageId,
+           quote_sender_name AS quoteSenderName,
+           quote_body AS quoteBody,
+           recalled_at AS recalledAt,
+           created_at AS createdAt
+    FROM messages
+    WHERE id = ?
+      AND id NOT IN (SELECT message_id FROM message_deletions WHERE user_id = ?)
+  `);
+  const searchMessages = db.prepare(`
+    SELECT id,
+           sender_id AS senderId,
+           sender_name AS senderName,
+           body,
+           attachment_name AS attachmentName,
+           attachment_type AS attachmentType,
+           NULL AS attachmentData,
+           quote_message_id AS quoteMessageId,
+           quote_sender_name AS quoteSenderName,
+           quote_body AS quoteBody,
+           recalled_at AS recalledAt,
+           created_at AS createdAt
+    FROM messages
+    WHERE recalled_at IS NULL
+      AND id NOT IN (SELECT message_id FROM message_deletions WHERE user_id = ?)
+      AND (
+        body LIKE ?
+        OR attachment_name LIKE ?
+        OR quote_body LIKE ?
+        OR sender_name LIKE ?
+      )
+    ORDER BY id DESC
+    LIMIT ?
   `);
   const recallMessage = db.prepare(`
     UPDATE messages
@@ -177,11 +225,24 @@ function createSqliteStore(databasePath) {
     WHERE id = ?
   `);
   const deleteScheduleItem = db.prepare("DELETE FROM schedule_items WHERE id = ?");
+  const selectUserPasswordHash = db.prepare("SELECT password_hash AS passwordHash FROM user_passwords WHERE user_id = ?");
+  const upsertUserPasswordHash = db.prepare(`
+    INSERT INTO user_passwords (user_id, password_hash, updated_at)
+    VALUES (?, ?, datetime('now'))
+    ON CONFLICT(user_id) DO UPDATE SET password_hash = excluded.password_hash, updated_at = datetime('now')
+  `);
 
   return {
     async init() {},
     async listMessages(userId, limit) {
       return selectMessages.all(userId, limit).reverse();
+    },
+    async getMessage(userId, id) {
+      return selectVisibleMessage.get(id, userId) || null;
+    },
+    async searchMessages(userId, query, limit) {
+      const pattern = `%${query}%`;
+      return searchMessages.all(userId, pattern, pattern, pattern, pattern, limit);
     },
     async createMessage(user, body, attachment, quote) {
       const result = insertMessage.run(
@@ -207,6 +268,12 @@ function createSqliteStore(databasePath) {
     },
     async clearAllMessages() {
       clearAllMessages();
+    },
+    async getUserPasswordHash(userId) {
+      return selectUserPasswordHash.get(userId)?.passwordHash || null;
+    },
+    async setUserPasswordHash(userId, passwordHash) {
+      upsertUserPasswordHash.run(userId, passwordHash);
     },
     async listFoodItems() {
       return selectFoodItems.all();
@@ -292,6 +359,12 @@ function createPostgresStore(databaseUrl) {
           created_by_name TEXT NOT NULL,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
+
+        CREATE TABLE IF NOT EXISTS user_passwords (
+          user_id TEXT PRIMARY KEY,
+          password_hash TEXT NOT NULL,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
       `);
       await pool.query(`
         ALTER TABLE messages
@@ -327,6 +400,60 @@ function createPostgresStore(databaseUrl) {
         [userId, limit]
       );
       return result.rows.reverse();
+    },
+    async getMessage(userId, id) {
+      const result = await pool.query(
+        `SELECT id::text AS "id",
+                sender_id AS "senderId",
+                sender_name AS "senderName",
+                body,
+                attachment_name AS "attachmentName",
+                attachment_type AS "attachmentType",
+                attachment_data AS "attachmentData",
+                quote_message_id AS "quoteMessageId",
+                quote_sender_name AS "quoteSenderName",
+                quote_body AS "quoteBody",
+                recalled_at AS "recalledAt",
+                created_at AS "createdAt"
+         FROM messages
+         WHERE id = $1
+           AND id NOT IN (
+             SELECT message_id FROM message_deletions WHERE user_id = $2
+           )`,
+        [id, userId]
+      );
+      return result.rows[0] || null;
+    },
+    async searchMessages(userId, query, limit) {
+      const result = await pool.query(
+        `SELECT id::text AS "id",
+                sender_id AS "senderId",
+                sender_name AS "senderName",
+                body,
+                attachment_name AS "attachmentName",
+                attachment_type AS "attachmentType",
+                NULL AS "attachmentData",
+                quote_message_id AS "quoteMessageId",
+                quote_sender_name AS "quoteSenderName",
+                quote_body AS "quoteBody",
+                recalled_at AS "recalledAt",
+                created_at AS "createdAt"
+         FROM messages
+         WHERE recalled_at IS NULL
+           AND id NOT IN (
+             SELECT message_id FROM message_deletions WHERE user_id = $1
+           )
+           AND (
+             body ILIKE $2
+             OR attachment_name ILIKE $2
+             OR quote_body ILIKE $2
+             OR sender_name ILIKE $2
+           )
+         ORDER BY id DESC
+         LIMIT $3`,
+        [userId, `%${query}%`, limit]
+      );
+      return result.rows;
     },
     async createMessage(user, body, attachment, quote) {
       const result = await pool.query(
@@ -398,6 +525,25 @@ function createPostgresStore(databaseUrl) {
     async clearAllMessages() {
       await pool.query("DELETE FROM message_deletions");
       await pool.query("DELETE FROM messages");
+    },
+    async getUserPasswordHash(userId) {
+      const result = await pool.query(
+        `SELECT password_hash AS "passwordHash"
+         FROM user_passwords
+         WHERE user_id = $1`,
+        [userId]
+      );
+      return result.rows[0]?.passwordHash || null;
+    },
+    async setUserPasswordHash(userId, passwordHash) {
+      await pool.query(
+        `INSERT INTO user_passwords (user_id, password_hash, updated_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT (user_id)
+         DO UPDATE SET password_hash = EXCLUDED.password_hash,
+                       updated_at = NOW()`,
+        [userId, passwordHash]
+      );
     },
     async listFoodItems() {
       const result = await pool.query(

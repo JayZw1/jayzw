@@ -16,6 +16,14 @@ const loginPanel = document.querySelector("#loginPanel");
 const chatPanel = document.querySelector("#chatPanel");
 const loginForm = document.querySelector("#loginForm");
 const loginError = document.querySelector("#loginError");
+const openPasswordChangeButton = document.querySelector("#openPasswordChangeButton");
+const passwordChangePanel = document.querySelector("#passwordChangePanel");
+const passwordChangeForm = document.querySelector("#passwordChangeForm");
+const passwordChangeUsername = document.querySelector("#passwordChangeUsername");
+const passwordChangeOld = document.querySelector("#passwordChangeOld");
+const passwordChangeNew = document.querySelector("#passwordChangeNew");
+const passwordChangeStatus = document.querySelector("#passwordChangeStatus");
+const closePasswordChangeButton = document.querySelector("#closePasswordChangeButton");
 const messagesEl = document.querySelector("#messages");
 const messageForm = document.querySelector("#messageForm");
 const sendButton = document.querySelector("#sendButton");
@@ -38,6 +46,13 @@ const contextMenu = document.querySelector("#contextMenu");
 const statusText = document.querySelector("#statusText");
 const logoutButton = document.querySelector("#logoutButton");
 const clearHistoryButton = document.querySelector("#clearHistoryButton");
+const messageSearchButton = document.querySelector("#messageSearchButton");
+const messageSearchPanel = document.querySelector("#messageSearchPanel");
+const messageSearchForm = document.querySelector("#messageSearchForm");
+const messageSearchInput = document.querySelector("#messageSearchInput");
+const messageSearchSummary = document.querySelector("#messageSearchSummary");
+const messageSearchResults = document.querySelector("#messageSearchResults");
+const closeMessageSearchButton = document.querySelector("#closeMessageSearchButton");
 const otherFeatureButton = document.querySelector("#otherFeatureButton");
 const otherFeaturePanel = document.querySelector("#otherFeaturePanel");
 const otherFeatureList = document.querySelector("#otherFeatureList");
@@ -188,7 +203,11 @@ function syncViewportHeight() {
     !schedulePanel.classList.contains("hidden") &&
     (activeElement === scheduleDateInput || activeElement === scheduleContentInput);
   const scheduleContentFocused = scheduleFocused && activeElement === scheduleContentInput;
-  const anyKeyboardFocused = composerFocused || foodFocused || scheduleFocused;
+  const messageSearchFocused =
+    messageSearchPanel &&
+    !messageSearchPanel.classList.contains("hidden") &&
+    activeElement === messageSearchInput;
+  const anyKeyboardFocused = composerFocused || foodFocused || scheduleFocused || messageSearchFocused;
   if (!anyKeyboardFocused || height > baseViewportHeight) {
     baseViewportHeight = Math.max(baseViewportHeight, height, window.innerHeight);
   }
@@ -207,6 +226,7 @@ function syncViewportHeight() {
   document.body.classList.toggle("food-name-keyboard-open", foodNameFocused);
   document.body.classList.toggle("schedule-keyboard-open", scheduleFocused);
   document.body.classList.toggle("schedule-content-keyboard-open", scheduleContentFocused);
+  document.body.classList.toggle("message-search-keyboard-open", messageSearchFocused);
 }
 
 function syncViewportSoon() {
@@ -253,6 +273,46 @@ function showChat() {
   requestNotificationPermission();
 }
 
+function openPasswordChangePanel() {
+  passwordChangeStatus.textContent = "";
+  passwordChangeUsername.value = document.querySelector("#username")?.value || "";
+  passwordChangeOld.value = "";
+  passwordChangeNew.value = "";
+  passwordChangePanel?.classList.remove("hidden");
+  passwordChangeUsername?.focus();
+}
+
+function closePasswordChangePanel() {
+  passwordChangePanel?.classList.add("hidden");
+}
+
+async function changePassword(event) {
+  event.preventDefault();
+  passwordChangeStatus.textContent = "正在保存...";
+
+  try {
+    const response = await api("/api/password/change", {
+      method: "POST",
+      body: JSON.stringify({
+        username: passwordChangeUsername.value.trim(),
+        oldPassword: passwordChangeOld.value,
+        newPassword: passwordChangeNew.value,
+      }),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "更改失败。");
+    }
+
+    passwordChangeStatus.textContent = "密码已更新，可以用新密码登录。";
+    passwordChangeOld.value = "";
+    passwordChangeNew.value = "";
+  } catch (error) {
+    passwordChangeStatus.textContent = error.message;
+  }
+}
+
 function formatTime(value) {
   const date = value instanceof Date ? value : new Date(value.endsWith?.("Z") ? value : `${value}Z`);
 
@@ -264,7 +324,7 @@ function formatTime(value) {
   }).format(date);
 }
 
-function renderMessage(message) {
+function renderMessage(message, options = {}) {
   const messageId = String(message.id);
 
   if (state.renderedMessages.has(messageId)) {
@@ -282,8 +342,23 @@ function renderMessage(message) {
   `;
   bindMessageMenu(item, message);
   updateMessageElement(item, message);
+  insertMessageElement(item, messageId);
+  if (options.scroll !== false) {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+}
+
+function insertMessageElement(item, messageId) {
+  const currentId = Number(messageId);
+
+  for (const child of messagesEl.querySelectorAll(".message[data-message-id]")) {
+    if (Number(child.dataset.messageId) > currentId) {
+      messagesEl.insertBefore(item, child);
+      return;
+    }
+  }
+
   messagesEl.append(item);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
 function renderAttachment(message, bubble) {
@@ -567,6 +642,10 @@ function closeImportantDaysPanel() {
   importantDaysPanel?.classList.add("hidden");
 }
 
+function closeMessageSearchPanel() {
+  messageSearchPanel?.classList.add("hidden");
+}
+
 function closeOtherFeaturePanel() {
   otherFeaturePanel?.classList.add("hidden");
 }
@@ -636,6 +715,105 @@ function renderOtherFeatures() {
 function openOtherFeaturePanel() {
   otherFeaturePanel?.classList.remove("hidden");
   renderOtherFeatures();
+}
+
+function openMessageSearchPanel() {
+  messageSearchPanel?.classList.remove("hidden");
+  messageSearchInput?.focus();
+}
+
+function getSearchPreview(message) {
+  if (message.body) {
+    return message.body;
+  }
+
+  if (message.attachmentName) {
+    return `附件：${message.attachmentName}`;
+  }
+
+  if (message.quoteBody) {
+    return `引用：${message.quoteBody}`;
+  }
+
+  return "这条消息没有文字内容";
+}
+
+function renderMessageSearchResults(messages, query) {
+  if (!messageSearchResults || !messageSearchSummary) {
+    return;
+  }
+
+  messageSearchResults.innerHTML = "";
+  messageSearchSummary.textContent = messages.length
+    ? `找到 ${messages.length} 条和“${query}”相关的记录`
+    : `没有找到和“${query}”相关的记录`;
+
+  for (const message of messages) {
+    const item = document.createElement("button");
+    item.className = "message-search-result";
+    item.type = "button";
+    item.innerHTML = `
+      <span class="message-search-meta"></span>
+      <strong></strong>
+      <span class="message-search-preview"></span>
+    `;
+    item.querySelector(".message-search-meta").textContent = `${message.senderName} · ${formatTime(message.createdAt)}`;
+    item.querySelector("strong").textContent = message.senderName;
+    item.querySelector(".message-search-preview").textContent = getSearchPreview(message);
+    item.addEventListener("click", () => jumpToSearchMessage(message));
+    messageSearchResults.append(item);
+  }
+}
+
+async function searchMessages(event) {
+  event.preventDefault();
+  const query = messageSearchInput.value.trim();
+
+  if (!query) {
+    messageSearchSummary.textContent = "输入关键词查询聊天记录。";
+    messageSearchResults.innerHTML = "";
+    return;
+  }
+
+  messageSearchSummary.textContent = "正在查询...";
+  messageSearchResults.innerHTML = "";
+
+  try {
+    const response = await api(`/api/messages/search?q=${encodeURIComponent(query)}`);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "查询失败。");
+    }
+
+    renderMessageSearchResults(data.messages || [], query);
+  } catch (error) {
+    messageSearchSummary.textContent = error.message;
+  }
+}
+
+async function jumpToSearchMessage(message) {
+  closeMessageSearchPanel();
+  let targetMessage = message;
+
+  if (!state.renderedMessages.has(String(message.id))) {
+    try {
+      const response = await api(`/api/messages/${message.id}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "消息加载失败。");
+      }
+
+      targetMessage = data.message;
+    } catch (error) {
+      statusText.textContent = error.message;
+    }
+
+    renderMessage(targetMessage, { scroll: false });
+  }
+
+  scrollToMessage(message.id);
 }
 
 async function loadFoodItems() {
@@ -1873,6 +2051,8 @@ scheduleDateInput?.addEventListener("focus", syncViewportSoon);
 scheduleDateInput?.addEventListener("blur", syncViewportSoon);
 scheduleContentInput?.addEventListener("focus", syncViewportSoon);
 scheduleContentInput?.addEventListener("blur", syncViewportSoon);
+messageSearchInput?.addEventListener("focus", syncViewportSoon);
+messageSearchInput?.addEventListener("blur", syncViewportSoon);
 
 logoutButton.addEventListener("click", () => {
   localStorage.removeItem("chat_token");
@@ -1934,6 +2114,20 @@ document.addEventListener("click", (event) => {
   ) {
     closeOtherFeaturePanel();
   }
+  if (
+    messageSearchPanel &&
+    !messageSearchPanel.classList.contains("hidden") &&
+    event.target === messageSearchPanel
+  ) {
+    closeMessageSearchPanel();
+  }
+  if (
+    passwordChangePanel &&
+    !passwordChangePanel.classList.contains("hidden") &&
+    event.target === passwordChangePanel
+  ) {
+    closePasswordChangePanel();
+  }
   if (weatherPanel && !weatherPanel.classList.contains("hidden") && event.target === weatherPanel) {
     closeWeatherPanel();
   }
@@ -1991,6 +2185,9 @@ videoCallButton?.addEventListener("click", () => {
 acceptCallButton?.addEventListener("click", acceptCall);
 declineCallButton?.addEventListener("click", declineCall);
 endCallButton?.addEventListener("click", () => endCall(true));
+messageSearchButton?.addEventListener("click", openMessageSearchPanel);
+messageSearchForm?.addEventListener("submit", searchMessages);
+closeMessageSearchButton?.addEventListener("click", closeMessageSearchPanel);
 otherFeatureButton?.addEventListener("click", openOtherFeaturePanel);
 closeOtherFeatureButton?.addEventListener("click", closeOtherFeaturePanel);
 importantDaysButton?.addEventListener("click", openImportantDaysPanel);
@@ -2003,6 +2200,9 @@ scheduleForm?.addEventListener("submit", addScheduleItem);
 closeScheduleButton?.addEventListener("click", closeSchedulePanel);
 todayBadge?.addEventListener("click", openWeatherPanel);
 closeWeatherButton?.addEventListener("click", closeWeatherPanel);
+openPasswordChangeButton?.addEventListener("click", openPasswordChangePanel);
+passwordChangeForm?.addEventListener("submit", changePassword);
+closePasswordChangeButton?.addEventListener("click", closePasswordChangePanel);
 
 clearHistoryButton?.addEventListener("click", async () => {
   const password = window.prompt("请输入确认密码，清空后不可恢复。");
