@@ -2728,7 +2728,8 @@ function deleteMessage(id) {
   });
 }
 
-async function loadMessages() {
+async function loadMessages(options = {}) {
+  const { reset = true, scroll = true } = options;
   const response = await api("/api/messages");
   const data = await response.json();
 
@@ -2736,9 +2737,16 @@ async function loadMessages() {
     throw new Error(data.error || "消息加载失败。");
   }
 
-  messagesEl.innerHTML = "";
-  state.renderedMessages.clear();
-  data.messages.forEach(renderMessage);
+  if (reset) {
+    messagesEl.innerHTML = "";
+    state.renderedMessages.clear();
+  }
+
+  data.messages.forEach((message) => renderMessage(message, { scroll: reset ? scroll : false }));
+
+  if (scroll) {
+    scrollMessagesToBottom();
+  }
 }
 
 async function refreshMessagesAfterResume(force = false) {
@@ -2754,7 +2762,7 @@ async function refreshMessagesAfterResume(force = false) {
   lastResumeRefreshAt = now;
 
   try {
-    await loadMessages();
+    await loadMessages({ reset: false, scroll: false });
     statusText.textContent = state.socket?.connected ? "已同步最新消息" : "已同步最新消息，实时连接正在恢复";
     if (!state.socket?.connected) {
       connectSocket();
@@ -2770,7 +2778,7 @@ function connectSocket() {
 
   state.socket.on("connect", () => {
     statusText.textContent = "已连接";
-    refreshMessagesAfterResume(true);
+    refreshMessagesAfterResume();
   });
 
   state.socket.on("disconnect", () => {
@@ -2841,6 +2849,7 @@ async function boot() {
     await loadTodayInfo();
     await loadUpcomingSummaries();
     await loadMessages();
+    lastResumeRefreshAt = Date.now();
     connectSocket();
   } catch {
     localStorage.removeItem("chat_token");
@@ -2876,6 +2885,7 @@ loginForm.addEventListener("submit", async (event) => {
   await loadTodayInfo();
   await loadUpcomingSummaries();
   await loadMessages();
+  lastResumeRefreshAt = Date.now();
   connectSocket();
 });
 
