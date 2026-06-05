@@ -40,11 +40,11 @@
             <div class="title-row">
               <h1>碎碎念收件箱</h1>
               <button class="ghost important-days-button" id="importantDaysButton" type="button">重要日子</button>
-              <div class="today-badge" id="todayBadge" hidden>
+              <button class="today-badge" id="todayBadge" type="button" title="查看未来天气" hidden>
                 <strong id="todayWeatherText" hidden></strong>
                 <span id="todayDateText"></span>
                 <small id="todayFestivalText" hidden></small>
-              </div>
+              </button>
             </div>
             <p id="statusText">正在连接...</p>
           </div>
@@ -120,6 +120,16 @@
             <button class="ghost icon-control" id="closeImportantDaysButton" type="button" title="关闭">×</button>
           </div>
           <div class="important-days-list" id="importantDaysList">正在计算...</div>
+        </div>
+      </div>
+
+      <div class="weather-panel hidden" id="weatherPanel">
+        <div class="weather-card">
+          <div class="modal-title">
+            <h2>顺德天气</h2>
+            <button class="ghost icon-control" id="closeWeatherButton" type="button" title="关闭">×</button>
+          </div>
+          <div class="weather-list" id="weatherList">正在获取...</div>
         </div>
       </div>
     </main>

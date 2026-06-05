@@ -204,13 +204,27 @@ button:hover {
 .today-badge {
   display: grid;
   gap: 4px;
+  width: auto;
+  height: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--muted);
+  cursor: pointer;
   font-size: 12px;
+  font-weight: 500;
   line-height: 1.15;
   min-width: 0;
   overflow: hidden;
+  padding: 0;
+  text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.today-badge:hover {
+  background: transparent;
+  color: var(--text);
 }
 
 .today-badge strong {
@@ -640,7 +654,8 @@ button:hover {
   background: #b91c1c;
 }
 
-.important-days-panel {
+.important-days-panel,
+.weather-panel {
   position: fixed;
   inset: 0;
   z-index: 35;
@@ -650,7 +665,8 @@ button:hover {
   padding: 18px;
 }
 
-.important-days-card {
+.important-days-card,
+.weather-card {
   display: grid;
   gap: 14px;
   width: min(100%, 420px);
@@ -673,7 +689,8 @@ button:hover {
   font-size: 18px;
 }
 
-.important-days-list {
+.important-days-list,
+.weather-list {
   display: grid;
   gap: 10px;
   color: var(--muted);
@@ -708,6 +725,30 @@ button:hover {
   color: var(--accent);
   font-weight: 800;
   white-space: nowrap;
+}
+
+.weather-hour {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.weather-hour strong {
+  color: var(--text);
+}
+
+.weather-hour span {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.weather-hour small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .hidden {

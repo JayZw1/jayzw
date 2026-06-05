@@ -314,7 +314,7 @@ function getFestival(date) {
 
 async function getShundeWeather() {
   const url =
-    "https://api.open-meteo.com/v1/forecast?latitude=22.8069&longitude=113.2939&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FShanghai&forecast_days=1";
+    "https://api.open-meteo.com/v1/forecast?latitude=22.8069&longitude=113.2939&daily=weather_code,temperature_2m_max,temperature_2m_min&hourly=weather_code,temperature_2m,apparent_temperature,relative_humidity_2m,precipitation_probability,precipitation,wind_speed_10m&timezone=Asia%2FShanghai&forecast_days=1&forecast_hours=12";
 
   try {
     const response = await fetch(url);
@@ -338,10 +338,37 @@ async function getShundeWeather() {
       min,
       max,
       label: `顺德 ${weatherCodeLabel(weatherCode)} ${min}/${max}℃`,
+      hourly: buildHourlyWeather(data.hourly),
     };
   } catch {
     return null;
   }
+}
+
+function buildHourlyWeather(hourly) {
+  const times = hourly?.time || [];
+
+  return times.slice(0, 12).map((time, index) => ({
+    time,
+    summary: weatherCodeLabel(hourly.weather_code?.[index]),
+    temperature: roundWeatherValue(hourly.temperature_2m?.[index]),
+    apparentTemperature: roundWeatherValue(hourly.apparent_temperature?.[index]),
+    humidity: roundWeatherValue(hourly.relative_humidity_2m?.[index]),
+    precipitationProbability: roundWeatherValue(hourly.precipitation_probability?.[index]),
+    precipitation: roundWeatherValue(hourly.precipitation?.[index], 1),
+    windSpeed: roundWeatherValue(hourly.wind_speed_10m?.[index]),
+  }));
+}
+
+function roundWeatherValue(value, digits = 0) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    return null;
+  }
+
+  const factor = 10 ** digits;
+  return Math.round(number * factor) / factor;
 }
 
 function weatherCodeLabel(code) {

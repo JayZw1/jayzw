@@ -7,6 +7,7 @@ const state = {
   contextMessage: null,
   longPressTimer: null,
   renderedMessages: new Set(),
+  weather: null,
 };
 
 const loginPanel = document.querySelector("#loginPanel");
@@ -43,6 +44,9 @@ const todayBadge = document.querySelector("#todayBadge");
 const todayWeatherText = document.querySelector("#todayWeatherText");
 const todayDateText = document.querySelector("#todayDateText");
 const todayFestivalText = document.querySelector("#todayFestivalText");
+const weatherPanel = document.querySelector("#weatherPanel");
+const weatherList = document.querySelector("#weatherList");
+const closeWeatherButton = document.querySelector("#closeWeatherButton");
 const audioCallButton = document.querySelector("#audioCallButton");
 const videoCallButton = document.querySelector("#videoCallButton");
 const callMenuButton = document.querySelector("#callMenuButton");
@@ -456,11 +460,16 @@ function closeImportantDaysPanel() {
   importantDaysPanel?.classList.add("hidden");
 }
 
+function closeWeatherPanel() {
+  weatherPanel?.classList.add("hidden");
+}
+
 function renderTodayInfo(today) {
   if (!today || !todayBadge || !todayWeatherText || !todayDateText || !todayFestivalText) {
     return;
   }
 
+  state.weather = today.weather || state.weather;
   todayWeatherText.textContent = today.weather?.label || "";
   todayWeatherText.hidden = !today.weather?.label;
   todayDateText.textContent = today.label || today.date || "";
@@ -476,7 +485,7 @@ function renderTodayInfo(today) {
 async function loadBrowserWeather() {
   try {
     const response = await fetch(
-      "https://api.open-meteo.com/v1/forecast?latitude=22.8069&longitude=113.2939&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FShanghai&forecast_days=1"
+      "https://api.open-meteo.com/v1/forecast?latitude=22.8069&longitude=113.2939&daily=weather_code,temperature_2m_max,temperature_2m_min&hourly=weather_code,temperature_2m,apparent_temperature,relative_humidity_2m,precipitation_probability,precipitation,wind_speed_10m&timezone=Asia%2FShanghai&forecast_days=1&forecast_hours=12"
     );
     const data = await response.json();
     const code = data.daily?.weather_code?.[0];
@@ -487,9 +496,102 @@ async function loadBrowserWeather() {
       return;
     }
 
-    todayWeatherText.textContent = `顺德 ${weatherCodeLabel(code)} ${min}/${max}℃`;
+    state.weather = {
+      location: "顺德",
+      summary: weatherCodeLabel(code),
+      min,
+      max,
+      label: `顺德 ${weatherCodeLabel(code)} ${min}/${max}℃`,
+      hourly: buildBrowserHourlyWeather(data.hourly),
+    };
+    todayWeatherText.textContent = state.weather.label;
     todayWeatherText.hidden = false;
   } catch {}
+}
+
+function buildBrowserHourlyWeather(hourly) {
+  const times = hourly?.time || [];
+
+  return times.slice(0, 12).map((time, index) => ({
+    time,
+    summary: weatherCodeLabel(hourly.weather_code?.[index]),
+    temperature: roundWeatherValue(hourly.temperature_2m?.[index]),
+    apparentTemperature: roundWeatherValue(hourly.apparent_temperature?.[index]),
+    humidity: roundWeatherValue(hourly.relative_humidity_2m?.[index]),
+    precipitationProbability: roundWeatherValue(hourly.precipitation_probability?.[index]),
+    precipitation: roundWeatherValue(hourly.precipitation?.[index], 1),
+    windSpeed: roundWeatherValue(hourly.wind_speed_10m?.[index]),
+  }));
+}
+
+function roundWeatherValue(value, digits = 0) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    return null;
+  }
+
+  const factor = 10 ** digits;
+  return Math.round(number * factor) / factor;
+}
+
+async function openWeatherPanel() {
+  weatherPanel?.classList.remove("hidden");
+  weatherList.textContent = "正在获取...";
+
+  if (!state.weather?.hourly?.length) {
+    await loadBrowserWeather();
+  }
+
+  renderWeatherPanel();
+}
+
+function renderWeatherPanel() {
+  if (!weatherList) {
+    return;
+  }
+
+  const hours = state.weather?.hourly || [];
+
+  if (!hours.length) {
+    weatherList.textContent = "暂时没有拿到未来天气。";
+    return;
+  }
+
+  weatherList.innerHTML = "";
+  for (const hour of hours) {
+    const row = document.createElement("article");
+    row.className = "weather-hour";
+    row.innerHTML = `
+      <strong></strong>
+      <span></span>
+      <small></small>
+    `;
+    row.querySelector("strong").textContent = formatWeatherTime(hour.time);
+    row.querySelector("span").textContent =
+      `${hour.summary} ${formatWeatherValue(hour.temperature, "℃")} · 体感${formatWeatherValue(hour.apparentTemperature, "℃")}`;
+    row.querySelector("small").textContent =
+      `降雨${formatWeatherValue(hour.precipitationProbability, "%")} · 雨量${formatWeatherValue(hour.precipitation, "mm")} · 湿度${formatWeatherValue(hour.humidity, "%")} · 风${formatWeatherValue(hour.windSpeed, "km/h")}`;
+    weatherList.append(row);
+  }
+}
+
+function formatWeatherTime(value) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value || "").slice(11, 16);
+  }
+
+  return new Intl.DateTimeFormat("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+}
+
+function formatWeatherValue(value, unit) {
+  return value === null || value === undefined ? `--${unit}` : `${value}${unit}`;
 }
 
 function weatherCodeLabel(code) {
@@ -1259,6 +1361,9 @@ document.addEventListener("click", (event) => {
   ) {
     closeImportantDaysPanel();
   }
+  if (weatherPanel && !weatherPanel.classList.contains("hidden") && event.target === weatherPanel) {
+    closeWeatherPanel();
+  }
 });
 
 attachButton.addEventListener("click", () => {
@@ -1309,6 +1414,8 @@ declineCallButton?.addEventListener("click", declineCall);
 endCallButton?.addEventListener("click", () => endCall(true));
 importantDaysButton?.addEventListener("click", openImportantDaysPanel);
 closeImportantDaysButton?.addEventListener("click", closeImportantDaysPanel);
+todayBadge?.addEventListener("click", openWeatherPanel);
+closeWeatherButton?.addEventListener("click", closeWeatherPanel);
 
 clearHistoryButton?.addEventListener("click", async () => {
   const password = window.prompt("请输入确认密码，清空后不可恢复。");
