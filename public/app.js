@@ -54,7 +54,6 @@ const diaryForm = document.querySelector("#diaryForm");
 const diaryInput = document.querySelector("#diaryInput");
 const diaryList = document.querySelector("#diaryList");
 const closeDiaryButton = document.querySelector("#closeDiaryButton");
-const typingCat = document.querySelector("#typingCat");
 const messageSearchButton = document.querySelector("#messageSearchButton");
 const messageSearchPanel = document.querySelector("#messageSearchPanel");
 const messageSearchForm = document.querySelector("#messageSearchForm");
@@ -725,13 +724,11 @@ function showTypingIndicator(user) {
   }
 
   statusText.textContent = `${user?.displayName || "对方"}正在输入...`;
-  typingCat?.classList.remove("hidden");
   typingIndicatorTimer = setTimeout(hideTypingIndicator, 2400);
 }
 
 function hideTypingIndicator() {
   clearTimeout(typingIndicatorTimer);
-  typingCat?.classList.add("hidden");
 
   if (statusText.textContent.includes("正在输入")) {
     statusText.textContent = savedStatusText || "已连接";
