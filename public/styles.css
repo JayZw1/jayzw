@@ -200,7 +200,7 @@ button:hover {
 .title-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 14px;
   min-width: 0;
   white-space: nowrap;
 }
@@ -223,6 +223,8 @@ button:hover {
   gap: 1px;
   justify-items: center;
   min-width: 38px;
+  margin-left: 4px;
+  margin-right: 8px;
 }
 
 .express-status-button {
@@ -925,6 +927,7 @@ button.attachment {
 .other-feature-panel,
 .upcoming-schedule-panel,
 .upcoming-festival-panel,
+.express-panel,
 .password-change-panel,
 .weather-panel,
 .food-panel,
@@ -945,6 +948,7 @@ button.attachment {
 .other-feature-card,
 .upcoming-schedule-card,
 .upcoming-festival-card,
+.express-card,
 .password-change-card,
 .weather-card,
 .food-card,
@@ -994,6 +998,26 @@ button.attachment {
 .modal-title h2 {
   margin: 0;
   font-size: 18px;
+}
+
+.express-card {
+  width: min(100%, 320px);
+}
+
+.express-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.express-options button {
+  height: 40px;
+}
+
+.express-options button.active {
+  border-color: rgba(225, 29, 72, 0.45);
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .important-days-list,
@@ -1780,8 +1804,8 @@ button.attachment {
       "title express upcoming feature tools actions"
       "title express upcoming feature tools actions"
       "status status status status status status";
-    grid-template-columns: minmax(58px, 1fr) 32px 44px 44px 34px 38px;
-    column-gap: 3px;
+    grid-template-columns: minmax(56px, 1fr) 34px 46px 44px 34px 38px;
+    column-gap: 5px;
     row-gap: 5px;
     width: 100%;
   }
@@ -1796,6 +1820,8 @@ button.attachment {
     grid-area: express;
     align-self: start;
     min-width: 0;
+    margin-left: 0;
+    margin-right: 5px;
   }
 
   .express-status-button {

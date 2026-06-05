@@ -59,6 +59,9 @@ const clearHistoryButton = document.querySelector("#clearHistoryButton");
 const diaryButton = document.querySelector("#diaryButton");
 const expressStatusButton = document.querySelector("#expressStatusButton");
 const expressStatusText = document.querySelector("#expressStatusText");
+const expressStatusPanel = document.querySelector("#expressStatusPanel");
+const expressStatusOptions = document.querySelector("#expressStatusOptions");
+const closeExpressStatusButton = document.querySelector("#closeExpressStatusButton");
 const diaryPanel = document.querySelector("#diaryPanel");
 const diaryForm = document.querySelector("#diaryForm");
 const diaryInput = document.querySelector("#diaryInput");
@@ -1054,6 +1057,16 @@ function closeUpcomingFestivalPanel() {
   upcomingFestivalPanel?.classList.add("hidden");
 }
 
+function openExpressStatusPanel() {
+  ensureExpressStatusCurrentDate();
+  renderExpressStatus();
+  expressStatusPanel?.classList.remove("hidden");
+}
+
+function closeExpressStatusPanel() {
+  expressStatusPanel?.classList.add("hidden");
+}
+
 function closeWeatherPanel() {
   weatherPanel?.classList.add("hidden");
 }
@@ -1100,22 +1113,31 @@ function saveExpressStatus() {
 }
 
 function renderExpressStatus() {
+  ensureExpressStatusCurrentDate();
   const hasExpress = Boolean(state.expressStatus?.hasExpress);
   expressStatusButton?.setAttribute("aria-pressed", String(hasExpress));
   if (expressStatusText) {
     expressStatusText.textContent = hasExpress ? "有" : "没有";
   }
+  expressStatusOptions?.querySelectorAll("[data-express-status]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.expressStatus === (hasExpress ? "yes" : "no"));
+  });
 }
 
-function toggleExpressStatus() {
+function ensureExpressStatusCurrentDate() {
   const today = todayInputValue();
   if (state.expressStatus?.date !== today) {
     state.expressStatus = { date: today, hasExpress: false };
+    saveExpressStatus();
   }
+}
 
-  state.expressStatus.hasExpress = !state.expressStatus.hasExpress;
+function setExpressStatus(hasExpress) {
+  ensureExpressStatusCurrentDate();
+  state.expressStatus.hasExpress = Boolean(hasExpress);
   saveExpressStatus();
   renderExpressStatus();
+  closeExpressStatusPanel();
 }
 
 function parseYmd(value) {
@@ -3194,6 +3216,9 @@ document.addEventListener("click", (event) => {
   ) {
     closeUpcomingFestivalPanel();
   }
+  if (expressStatusPanel && !expressStatusPanel.classList.contains("hidden") && event.target === expressStatusPanel) {
+    closeExpressStatusPanel();
+  }
   if (weatherPanel && !weatherPanel.classList.contains("hidden") && event.target === weatherPanel) {
     closeWeatherPanel();
   }
@@ -3265,6 +3290,15 @@ upcomingScheduleButton?.addEventListener("click", openUpcomingSchedulePanel);
 closeUpcomingScheduleButton?.addEventListener("click", closeUpcomingSchedulePanel);
 upcomingFestivalButton?.addEventListener("click", openUpcomingFestivalPanel);
 closeUpcomingFestivalButton?.addEventListener("click", closeUpcomingFestivalPanel);
+expressStatusButton?.addEventListener("click", openExpressStatusPanel);
+closeExpressStatusButton?.addEventListener("click", closeExpressStatusPanel);
+expressStatusOptions?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-express-status]");
+  if (!button) {
+    return;
+  }
+  setExpressStatus(button.dataset.expressStatus === "yes");
+});
 importantDaysButton?.addEventListener("click", openImportantDaysPanel);
 closeImportantDaysButton?.addEventListener("click", closeImportantDaysPanel);
 foodButton?.addEventListener("click", () => {
@@ -3286,7 +3320,6 @@ closeScheduleButton?.addEventListener("click", closeSchedulePanel);
 todayBadge?.addEventListener("click", openWeatherPanel);
 closeWeatherButton?.addEventListener("click", closeWeatherPanel);
 diaryButton?.addEventListener("click", openDiaryPanel);
-expressStatusButton?.addEventListener("click", toggleExpressStatus);
 diaryForm?.addEventListener("submit", saveDiaryEntry);
 closeDiaryButton?.addEventListener("click", closeDiaryPanel);
 prevDiaryMonthButton?.addEventListener("click", () => {
