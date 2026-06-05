@@ -677,6 +677,10 @@ button:hover {
   padding: 16px;
 }
 
+.weather-card {
+  width: min(100%, 680px);
+}
+
 .modal-title {
   display: flex;
   align-items: center;
@@ -728,27 +732,60 @@ button:hover {
 }
 
 .weather-hour {
-  display: grid;
-  gap: 4px;
+  display: none;
+}
+
+.weather-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 10px 12px;
 }
 
-.weather-hour strong {
-  color: var(--text);
+.weather-grid {
+  display: grid;
+  grid-template-columns: 54px repeat(var(--weather-hours), minmax(76px, 1fr));
+  min-width: max-content;
 }
 
-.weather-hour span {
+.weather-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.25;
+  padding: 6px 8px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.weather-cell:nth-last-child(-n + 13) {
+  border-bottom: 0;
+}
+
+.weather-cell:nth-child(13n) {
+  border-right: 0;
+}
+
+.weather-label {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  justify-content: flex-start;
+  background: #f9fafb;
   color: var(--text);
-  font-size: 13px;
   font-weight: 700;
 }
 
-.weather-hour small {
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.45;
+.weather-main {
+  color: var(--text);
+  font-weight: 800;
 }
 
 .hidden {
@@ -766,6 +803,7 @@ button:hover {
     height: var(--app-height, 100dvh);
     min-height: var(--app-height, 100dvh);
     padding: 0;
+    transform: translateY(var(--visual-offset-top, 0px));
   }
 
   .login-panel,

@@ -117,8 +117,12 @@ const EMOJIS = [
 ];
 
 function syncViewportHeight() {
-  const height = window.visualViewport?.height || window.innerHeight;
+  const viewport = window.visualViewport;
+  const height = viewport?.height || window.innerHeight;
+  const offsetTop = viewport?.offsetTop || 0;
+
   document.documentElement.style.setProperty("--app-height", `${height}px`);
+  document.documentElement.style.setProperty("--visual-offset-top", `${offsetTop}px`);
 }
 
 function api(path, options = {}) {
@@ -559,21 +563,39 @@ function renderWeatherPanel() {
   }
 
   weatherList.innerHTML = "";
-  for (const hour of hours) {
-    const row = document.createElement("article");
-    row.className = "weather-hour";
-    row.innerHTML = `
-      <strong></strong>
-      <span></span>
-      <small></small>
-    `;
-    row.querySelector("strong").textContent = formatWeatherTime(hour.time);
-    row.querySelector("span").textContent =
-      `${hour.summary} ${formatWeatherValue(hour.temperature, "℃")} · 体感${formatWeatherValue(hour.apparentTemperature, "℃")}`;
-    row.querySelector("small").textContent =
-      `降雨${formatWeatherValue(hour.precipitationProbability, "%")} · 雨量${formatWeatherValue(hour.precipitation, "mm")} · 湿度${formatWeatherValue(hour.humidity, "%")} · 风${formatWeatherValue(hour.windSpeed, "km/h")}`;
-    weatherList.append(row);
+  const table = document.createElement("div");
+  table.className = "weather-scroll";
+  const grid = document.createElement("div");
+  grid.className = "weather-grid";
+  grid.style.setProperty("--weather-hours", String(hours.length));
+
+  const rows = [
+    ["时间", (hour) => formatWeatherTime(hour.time), "strong"],
+    ["天气", (hour) => hour.summary || "--", "strong"],
+    ["温度", (hour) => formatWeatherValue(hour.temperature, "℃")],
+    ["体感", (hour) => formatWeatherValue(hour.apparentTemperature, "℃")],
+    ["降雨", (hour) => formatWeatherValue(hour.precipitationProbability, "%")],
+    ["雨量", (hour) => formatWeatherValue(hour.precipitation, "mm")],
+    ["湿度", (hour) => formatWeatherValue(hour.humidity, "%")],
+    ["风速", (hour) => formatWeatherValue(hour.windSpeed, "km/h")],
+  ];
+
+  for (const [label, getValue, weight] of rows) {
+    const labelCell = document.createElement("div");
+    labelCell.className = "weather-cell weather-label";
+    labelCell.textContent = label;
+    grid.append(labelCell);
+
+    for (const hour of hours) {
+      const cell = document.createElement("div");
+      cell.className = `weather-cell ${weight === "strong" ? "weather-main" : ""}`;
+      cell.textContent = getValue(hour);
+      grid.append(cell);
+    }
   }
+
+  table.append(grid);
+  weatherList.append(table);
 }
 
 function formatWeatherTime(value) {
