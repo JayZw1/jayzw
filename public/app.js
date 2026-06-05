@@ -14,6 +14,7 @@ const state = {
   diaryEntries: [],
   diarySelectedDate: todayInputValue(),
   diaryVisibleMonth: todayInputValue().slice(0, 7),
+  bottomSettleUntil: 0,
 };
 
 const DIARY_MIN_DATE = "2025-01-01";
@@ -309,6 +310,24 @@ function scrollMessagesToBottom() {
   messagesEl.lastElementChild?.scrollIntoView({ block: "end" });
 }
 
+function settleMessagesAtBottom() {
+  state.bottomSettleUntil = Date.now() + 4200;
+  scrollMessagesToBottom();
+  for (const delay of [80, 180, 360, 720, 1200, 2000, 3500]) {
+    setTimeout(() => {
+      if (Date.now() <= state.bottomSettleUntil) {
+        scrollMessagesToBottom();
+      }
+    }, delay);
+  }
+}
+
+function settleMessagesAtBottomIfActive() {
+  if (Date.now() <= state.bottomSettleUntil) {
+    settleMessagesAtBottom();
+  }
+}
+
 function api(path, options = {}) {
   return fetch(path, {
     ...options,
@@ -454,6 +473,7 @@ function renderAttachment(message, bubble) {
     image.alt = message.attachmentName || "附件";
     image.src = attachmentUrl;
     image.loading = "lazy";
+    image.addEventListener("load", settleMessagesAtBottomIfActive, { once: true });
     attachment.append(image);
   } else if (isVideo) {
     const video = document.createElement("video");
@@ -461,6 +481,7 @@ function renderAttachment(message, bubble) {
     video.controls = true;
     video.preload = "metadata";
     video.playsInline = true;
+    video.addEventListener("loadedmetadata", settleMessagesAtBottomIfActive, { once: true });
     video.addEventListener("click", (event) => {
       event.stopPropagation();
       openAttachmentViewer(message, attachmentUrl);
@@ -2800,7 +2821,7 @@ async function loadMessages(options = {}) {
   data.messages.forEach((message) => renderMessage(message, { scroll: reset ? scroll : false }));
 
   if (scroll) {
-    scrollMessagesToBottom();
+    settleMessagesAtBottom();
   }
 }
 
