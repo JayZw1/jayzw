@@ -214,6 +214,27 @@ app.delete("/api/food-items/:id", requireAuth, async (req, res) => {
   }
 });
 
+app.delete("/api/food-days/:plannedDate", requireAuth, async (req, res) => {
+  const plannedDate = cleanFoodDate(req.params.plannedDate);
+
+  if (!plannedDate) {
+    return res.status(400).json({ error: "日期不正确。" });
+  }
+
+  try {
+    const deleted = await store.deleteFoodItemsByDate(plannedDate);
+
+    if (!deleted) {
+      return res.status(404).json({ error: "这天没有买菜清单。" });
+    }
+
+    io.emit("food:dayDeleted", { plannedDate });
+    res.json({ ok: true, plannedDate, deleted });
+  } catch {
+    res.status(500).json({ error: "删除失败，请稍后再试。" });
+  }
+});
+
 app.get("/api/schedule-items", requireAuth, async (req, res) => {
   try {
     res.json({ items: await store.listScheduleItems() });

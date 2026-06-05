@@ -719,6 +719,9 @@ button:hover {
 
 .schedule-card {
   width: min(100%, 460px);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  max-height: calc(var(--app-height, 100dvh) - 36px);
+  min-height: 0;
 }
 
 .modal-title {
@@ -745,6 +748,12 @@ button:hover {
 }
 
 .food-list {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+
+.schedule-list {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-right: 4px;
@@ -780,6 +789,20 @@ button:hover {
   border-radius: 8px;
   background: #f9fafb;
   padding: 10px;
+}
+
+.food-day-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.food-day-header button {
+  width: 72px;
+  height: 32px;
+  padding: 0;
+  font-size: 12px;
 }
 
 .food-day h3,

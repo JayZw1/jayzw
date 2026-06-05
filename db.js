@@ -151,6 +151,7 @@ function createSqliteStore(databasePath) {
     WHERE id = ?
   `);
   const deleteFoodItem = db.prepare("DELETE FROM food_items WHERE id = ?");
+  const deleteFoodItemsByDate = db.prepare("DELETE FROM food_items WHERE planned_date = ?");
   const selectScheduleItems = db.prepare(`
     SELECT id,
            planned_date AS plannedDate,
@@ -222,6 +223,10 @@ function createSqliteStore(databasePath) {
       const item = selectFoodItem.get(id);
       deleteFoodItem.run(id);
       return item || null;
+    },
+    async deleteFoodItemsByDate(plannedDate) {
+      const result = deleteFoodItemsByDate.run(plannedDate);
+      return result.changes;
     },
     async listScheduleItems() {
       return selectScheduleItems.all();
@@ -447,6 +452,14 @@ function createPostgresStore(databaseUrl) {
         [id]
       );
       return result.rows[0] || null;
+    },
+    async deleteFoodItemsByDate(plannedDate) {
+      const result = await pool.query(
+        `DELETE FROM food_items
+         WHERE planned_date = $1`,
+        [plannedDate]
+      );
+      return result.rowCount;
     },
     async listScheduleItems() {
       const result = await pool.query(

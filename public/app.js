@@ -590,8 +590,16 @@ function renderFoodItems() {
   for (const [date, items] of groups) {
     const section = document.createElement("section");
     section.className = "food-day";
+    const header = document.createElement("div");
+    header.className = "food-day-header";
     const title = document.createElement("h3");
     title.textContent = `${formatFoodDate(date)}买菜清单`;
+    const deleteDayButton = document.createElement("button");
+    deleteDayButton.className = "ghost danger-control";
+    deleteDayButton.type = "button";
+    deleteDayButton.textContent = "删除当天";
+    deleteDayButton.addEventListener("click", () => deleteFoodDay(date));
+    header.append(title, deleteDayButton);
     const list = document.createElement("div");
     list.className = "food-day-list";
 
@@ -599,7 +607,7 @@ function renderFoodItems() {
       list.append(renderFoodItem(item));
     }
 
-    section.append(title, list);
+    section.append(header, list);
     foodList.append(section);
   }
 }
@@ -696,6 +704,27 @@ async function deleteFoodItem(item) {
   }
 }
 
+async function deleteFoodDay(plannedDate) {
+  const label = formatFoodDate(plannedDate);
+
+  if (!window.confirm(`确定删除${label}的整份买菜清单吗？`)) {
+    return;
+  }
+
+  try {
+    const response = await api(`/api/food-days/${plannedDate}`, {
+      method: "DELETE",
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "删除失败。");
+    }
+  } catch (error) {
+    statusText.textContent = error.message;
+  }
+}
+
 function upsertFoodItem(item) {
   const index = state.foodItems.findIndex((current) => String(current.id) === String(item.id));
 
@@ -715,6 +744,11 @@ function upsertFoodItem(item) {
 
 function removeFoodItem({ id }) {
   state.foodItems = state.foodItems.filter((item) => String(item.id) !== String(id));
+  renderFoodItems();
+}
+
+function removeFoodDay({ plannedDate }) {
+  state.foodItems = state.foodItems.filter((item) => item.plannedDate !== plannedDate);
   renderFoodItems();
 }
 
@@ -1637,6 +1671,7 @@ function connectSocket() {
   state.socket.on("food:created", upsertFoodItem);
   state.socket.on("food:updated", upsertFoodItem);
   state.socket.on("food:deleted", removeFoodItem);
+  state.socket.on("food:dayDeleted", removeFoodDay);
   state.socket.on("schedule:created", upsertScheduleItem);
   state.socket.on("schedule:deleted", removeScheduleItem);
   state.socket.on("call:offer", receiveCall);
