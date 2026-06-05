@@ -1136,6 +1136,7 @@ function renderExpressStatus() {
   expressStatusButton?.setAttribute("aria-pressed", String(hasExpress));
   if (expressStatusText) {
     expressStatusText.textContent = hasExpress ? "有" : "没有";
+    expressStatusText.classList.toggle("has-express", hasExpress);
   }
   if (expressStatusCurrent) {
     expressStatusCurrent.textContent = hasExpress ? "今天：有" : "今天：没有";

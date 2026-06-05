@@ -255,6 +255,10 @@ button:hover {
   text-align: center;
 }
 
+.express-status-slot small.has-express {
+  color: #dc2626;
+}
+
 .important-days-button {
   width: 74px;
   height: 32px;
