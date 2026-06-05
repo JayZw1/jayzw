@@ -31,6 +31,16 @@ function createSqliteStore(databasePath) {
       deleted_at TEXT NOT NULL DEFAULT (datetime('now')),
       PRIMARY KEY (message_id, user_id)
     );
+
+    CREATE TABLE IF NOT EXISTS food_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      planned_date TEXT NOT NULL,
+      dish_name TEXT NOT NULL,
+      bought_at TEXT,
+      created_by_id TEXT NOT NULL,
+      created_by_name TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
   for (const statement of [
     "ALTER TABLE messages ADD COLUMN attachment_name TEXT",
@@ -100,6 +110,37 @@ function createSqliteStore(databasePath) {
     db.prepare("DELETE FROM message_deletions").run();
     db.prepare("DELETE FROM messages").run();
   });
+  const selectFoodItems = db.prepare(`
+    SELECT id,
+           planned_date AS plannedDate,
+           dish_name AS dishName,
+           bought_at AS boughtAt,
+           created_by_id AS createdById,
+           created_by_name AS createdByName,
+           created_at AS createdAt
+    FROM food_items
+    ORDER BY planned_date ASC, id ASC
+  `);
+  const insertFoodItem = db.prepare(`
+    INSERT INTO food_items (planned_date, dish_name, created_by_id, created_by_name)
+    VALUES (?, ?, ?, ?)
+  `);
+  const selectFoodItem = db.prepare(`
+    SELECT id,
+           planned_date AS plannedDate,
+           dish_name AS dishName,
+           bought_at AS boughtAt,
+           created_by_id AS createdById,
+           created_by_name AS createdByName,
+           created_at AS createdAt
+    FROM food_items
+    WHERE id = ?
+  `);
+  const updateFoodItemBought = db.prepare(`
+    UPDATE food_items
+    SET bought_at = CASE WHEN ? THEN datetime('now') ELSE NULL END
+    WHERE id = ?
+  `);
 
   return {
     async init() {},
@@ -130,6 +171,17 @@ function createSqliteStore(databasePath) {
     },
     async clearAllMessages() {
       clearAllMessages();
+    },
+    async listFoodItems() {
+      return selectFoodItems.all();
+    },
+    async createFoodItem(user, plannedDate, dishName) {
+      const result = insertFoodItem.run(plannedDate, dishName, user.id, user.displayName);
+      return selectFoodItem.get(result.lastInsertRowid);
+    },
+    async updateFoodItemBought(id, bought) {
+      updateFoodItemBought.run(bought ? 1 : 0, id);
+      return selectFoodItem.get(id);
     },
   };
 }
@@ -163,6 +215,16 @@ function createPostgresStore(databaseUrl) {
           user_id TEXT NOT NULL,
           deleted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           PRIMARY KEY (message_id, user_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS food_items (
+          id BIGSERIAL PRIMARY KEY,
+          planned_date DATE NOT NULL,
+          dish_name TEXT NOT NULL,
+          bought_at TIMESTAMPTZ,
+          created_by_id TEXT NOT NULL,
+          created_by_name TEXT NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
       `);
       await pool.query(`
@@ -270,6 +332,51 @@ function createPostgresStore(databaseUrl) {
     async clearAllMessages() {
       await pool.query("DELETE FROM message_deletions");
       await pool.query("DELETE FROM messages");
+    },
+    async listFoodItems() {
+      const result = await pool.query(
+        `SELECT id::text AS "id",
+                to_char(planned_date, 'YYYY-MM-DD') AS "plannedDate",
+                dish_name AS "dishName",
+                bought_at AS "boughtAt",
+                created_by_id AS "createdById",
+                created_by_name AS "createdByName",
+                created_at AS "createdAt"
+         FROM food_items
+         ORDER BY planned_date ASC, id ASC`
+      );
+      return result.rows;
+    },
+    async createFoodItem(user, plannedDate, dishName) {
+      const result = await pool.query(
+        `INSERT INTO food_items (planned_date, dish_name, created_by_id, created_by_name)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id::text AS "id",
+                   to_char(planned_date, 'YYYY-MM-DD') AS "plannedDate",
+                   dish_name AS "dishName",
+                   bought_at AS "boughtAt",
+                   created_by_id AS "createdById",
+                   created_by_name AS "createdByName",
+                   created_at AS "createdAt"`,
+        [plannedDate, dishName, user.id, user.displayName]
+      );
+      return result.rows[0];
+    },
+    async updateFoodItemBought(id, bought) {
+      const result = await pool.query(
+        `UPDATE food_items
+         SET bought_at = CASE WHEN $2 THEN NOW() ELSE NULL END
+         WHERE id = $1
+         RETURNING id::text AS "id",
+                   to_char(planned_date, 'YYYY-MM-DD') AS "plannedDate",
+                   dish_name AS "dishName",
+                   bought_at AS "boughtAt",
+                   created_by_id AS "createdById",
+                   created_by_name AS "createdByName",
+                   created_at AS "createdAt"`,
+        [id, Boolean(bought)]
+      );
+      return result.rows[0] || null;
     },
   };
 }

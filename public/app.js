@@ -8,6 +8,7 @@ const state = {
   longPressTimer: null,
   renderedMessages: new Set(),
   weather: null,
+  foodItems: [],
 };
 
 const loginPanel = document.querySelector("#loginPanel");
@@ -40,6 +41,13 @@ const importantDaysButton = document.querySelector("#importantDaysButton");
 const importantDaysPanel = document.querySelector("#importantDaysPanel");
 const importantDaysList = document.querySelector("#importantDaysList");
 const closeImportantDaysButton = document.querySelector("#closeImportantDaysButton");
+const foodButton = document.querySelector("#foodButton");
+const foodPanel = document.querySelector("#foodPanel");
+const foodForm = document.querySelector("#foodForm");
+const foodDateInput = document.querySelector("#foodDateInput");
+const foodNameInput = document.querySelector("#foodNameInput");
+const foodList = document.querySelector("#foodList");
+const closeFoodButton = document.querySelector("#closeFoodButton");
 const todayBadge = document.querySelector("#todayBadge");
 const todayWeatherText = document.querySelector("#todayWeatherText");
 const todayDateText = document.querySelector("#todayDateText");
@@ -120,9 +128,20 @@ function syncViewportHeight() {
   const viewport = window.visualViewport;
   const height = viewport?.height || window.innerHeight;
   const offsetTop = viewport?.offsetTop || 0;
+  const keyboardBottom = Math.max(0, window.innerHeight - height - offsetTop);
+  const composerFocused = document.activeElement === messageInput;
+  const composerHeight = Math.ceil(messageForm?.getBoundingClientRect().height || 68);
 
   document.documentElement.style.setProperty("--app-height", `${height}px`);
   document.documentElement.style.setProperty("--visual-offset-top", `${offsetTop}px`);
+  document.documentElement.style.setProperty("--keyboard-bottom", `${keyboardBottom}px`);
+  document.documentElement.style.setProperty("--composer-height", `${composerHeight}px`);
+  document.body.classList.toggle("keyboard-open", composerFocused);
+}
+
+function syncViewportSoon() {
+  requestAnimationFrame(syncViewportHeight);
+  setTimeout(syncViewportHeight, 280);
 }
 
 function api(path, options = {}) {
@@ -466,6 +485,172 @@ function closeImportantDaysPanel() {
 
 function closeWeatherPanel() {
   weatherPanel?.classList.add("hidden");
+}
+
+function closeFoodPanel() {
+  foodPanel?.classList.add("hidden");
+}
+
+function todayInputValue() {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+async function openFoodPanel() {
+  foodPanel?.classList.remove("hidden");
+  foodDateInput.value ||= todayInputValue();
+  await loadFoodItems();
+}
+
+async function loadFoodItems() {
+  if (!foodList) {
+    return;
+  }
+
+  foodList.textContent = "正在加载...";
+
+  try {
+    const response = await api("/api/food-items");
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "买菜清单加载失败。");
+    }
+
+    state.foodItems = data.items || [];
+    renderFoodItems();
+  } catch (error) {
+    foodList.textContent = error.message;
+  }
+}
+
+function renderFoodItems() {
+  if (!foodList) {
+    return;
+  }
+
+  foodList.innerHTML = "";
+
+  if (!state.foodItems.length) {
+    foodList.textContent = "还没有记录要买的菜。";
+    return;
+  }
+
+  const groups = new Map();
+  for (const item of state.foodItems) {
+    const group = groups.get(item.plannedDate) || [];
+    group.push(item);
+    groups.set(item.plannedDate, group);
+  }
+
+  for (const [date, items] of groups) {
+    const section = document.createElement("section");
+    section.className = "food-day";
+    const title = document.createElement("h3");
+    title.textContent = formatFoodDate(date);
+    const list = document.createElement("div");
+    list.className = "food-day-list";
+
+    for (const item of items) {
+      list.append(renderFoodItem(item));
+    }
+
+    section.append(title, list);
+    foodList.append(section);
+  }
+}
+
+function renderFoodItem(item) {
+  const row = document.createElement("article");
+  row.className = `food-item ${item.boughtAt ? "bought" : ""}`;
+  row.dataset.foodId = item.id;
+  row.innerHTML = `
+    <div>
+      <strong></strong>
+      <span></span>
+    </div>
+    <button class="ghost" type="button"></button>
+  `;
+  row.querySelector("strong").textContent = item.dishName;
+  row.querySelector("span").textContent = `${item.createdByName || "我们"} 添加`;
+  const button = row.querySelector("button");
+  button.textContent = item.boughtAt ? "取消已买" : "已买";
+  button.addEventListener("click", () => toggleFoodBought(item));
+  return row;
+}
+
+function formatFoodDate(value) {
+  const today = todayInputValue();
+  const tomorrowDate = new Date();
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const tomorrow = `${tomorrowDate.getFullYear()}-${String(tomorrowDate.getMonth() + 1).padStart(2, "0")}-${String(tomorrowDate.getDate()).padStart(2, "0")}`;
+
+  if (value === today) return "今天";
+  if (value === tomorrow) return "明天";
+  return value;
+}
+
+async function addFoodItem(event) {
+  event.preventDefault();
+  const plannedDate = foodDateInput.value || todayInputValue();
+  const dishName = foodNameInput.value.trim();
+
+  if (!dishName) {
+    return;
+  }
+
+  foodNameInput.value = "";
+
+  try {
+    const response = await api("/api/food-items", {
+      method: "POST",
+      body: JSON.stringify({ plannedDate, dishName }),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "添加失败。");
+    }
+  } catch (error) {
+    foodNameInput.value = dishName;
+    statusText.textContent = error.message;
+  }
+}
+
+async function toggleFoodBought(item) {
+  try {
+    const response = await api(`/api/food-items/${item.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ bought: !item.boughtAt }),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "更新失败。");
+    }
+  } catch (error) {
+    statusText.textContent = error.message;
+  }
+}
+
+function upsertFoodItem(item) {
+  const index = state.foodItems.findIndex((current) => String(current.id) === String(item.id));
+
+  if (index >= 0) {
+    state.foodItems[index] = item;
+  } else {
+    state.foodItems.push(item);
+  }
+
+  state.foodItems.sort((left, right) =>
+    left.plannedDate === right.plannedDate
+      ? Number(left.id) - Number(right.id)
+      : left.plannedDate.localeCompare(right.plannedDate)
+  );
+  renderFoodItems();
 }
 
 function renderTodayInfo(today) {
@@ -1245,6 +1430,8 @@ function connectSocket() {
     state.renderedMessages.clear();
     statusText.textContent = "聊天记录已清空";
   });
+  state.socket.on("food:created", upsertFoodItem);
+  state.socket.on("food:updated", upsertFoodItem);
   state.socket.on("call:offer", receiveCall);
   state.socket.on("call:answer", applyAnswer);
   state.socket.on("call:ice", applyIce);
@@ -1328,7 +1515,11 @@ sendButton?.addEventListener("click", async (event) => {
 messageInput.addEventListener("input", () => {
   messageInput.style.height = "auto";
   messageInput.style.height = `${messageInput.scrollHeight}px`;
+  syncViewportSoon();
 });
+
+messageInput.addEventListener("focus", syncViewportSoon);
+messageInput.addEventListener("blur", syncViewportSoon);
 
 logoutButton.addEventListener("click", () => {
   localStorage.removeItem("chat_token");
@@ -1386,6 +1577,9 @@ document.addEventListener("click", (event) => {
   if (weatherPanel && !weatherPanel.classList.contains("hidden") && event.target === weatherPanel) {
     closeWeatherPanel();
   }
+  if (foodPanel && !foodPanel.classList.contains("hidden") && event.target === foodPanel) {
+    closeFoodPanel();
+  }
 });
 
 attachButton.addEventListener("click", () => {
@@ -1436,6 +1630,9 @@ declineCallButton?.addEventListener("click", declineCall);
 endCallButton?.addEventListener("click", () => endCall(true));
 importantDaysButton?.addEventListener("click", openImportantDaysPanel);
 closeImportantDaysButton?.addEventListener("click", closeImportantDaysPanel);
+foodButton?.addEventListener("click", openFoodPanel);
+foodForm?.addEventListener("submit", addFoodItem);
+closeFoodButton?.addEventListener("click", closeFoodPanel);
 todayBadge?.addEventListener("click", openWeatherPanel);
 closeWeatherButton?.addEventListener("click", closeWeatherPanel);
 
@@ -1525,9 +1722,9 @@ function clearAttachment() {
 renderEmojiPanel();
 setEmojiTab("emoji");
 syncViewportHeight();
-window.addEventListener("resize", syncViewportHeight);
-window.visualViewport?.addEventListener("resize", syncViewportHeight);
-window.visualViewport?.addEventListener("scroll", syncViewportHeight);
+window.addEventListener("resize", syncViewportSoon);
+window.visualViewport?.addEventListener("resize", syncViewportSoon);
+window.visualViewport?.addEventListener("scroll", syncViewportSoon);
 boot();
 
 if ("serviceWorker" in navigator) {

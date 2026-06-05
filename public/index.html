@@ -40,6 +40,7 @@
             <div class="title-row">
               <h1>碎碎念收件箱</h1>
               <button class="ghost important-days-button" id="importantDaysButton" type="button">重要日子</button>
+              <button class="ghost food-button" id="foodButton" type="button">买菜</button>
               <button class="today-badge" id="todayBadge" type="button" title="查看未来天气" hidden>
                 <strong id="todayWeatherText" hidden></strong>
                 <span id="todayDateText"></span>
@@ -130,6 +131,21 @@
             <button class="ghost icon-control" id="closeWeatherButton" type="button" title="关闭">×</button>
           </div>
           <div class="weather-list" id="weatherList">正在获取...</div>
+        </div>
+      </div>
+
+      <div class="food-panel hidden" id="foodPanel">
+        <div class="food-card">
+          <div class="modal-title">
+            <h2>买菜清单</h2>
+            <button class="ghost icon-control" id="closeFoodButton" type="button" title="关闭">×</button>
+          </div>
+          <form class="food-form" id="foodForm">
+            <input id="foodDateInput" type="date" required />
+            <input id="foodNameInput" maxlength="80" placeholder="输入要买的菜" required />
+            <button type="submit">添加</button>
+          </form>
+          <div class="food-list" id="foodList">正在加载...</div>
         </div>
       </div>
     </main>

@@ -201,6 +201,13 @@ button:hover {
   font-size: 13px;
 }
 
+.food-button {
+  width: 52px;
+  height: 32px;
+  padding: 0;
+  font-size: 13px;
+}
+
 .today-badge {
   display: grid;
   gap: 4px;
@@ -655,7 +662,8 @@ button:hover {
 }
 
 .important-days-panel,
-.weather-panel {
+.weather-panel,
+.food-panel {
   position: fixed;
   inset: 0;
   z-index: 35;
@@ -666,7 +674,8 @@ button:hover {
 }
 
 .important-days-card,
-.weather-card {
+.weather-card,
+.food-card {
   display: grid;
   gap: 14px;
   width: min(100%, 420px);
@@ -679,6 +688,10 @@ button:hover {
 
 .weather-card {
   width: min(100%, 680px);
+}
+
+.food-card {
+  width: min(100%, 460px);
 }
 
 .modal-title {
@@ -694,11 +707,86 @@ button:hover {
 }
 
 .important-days-list,
-.weather-list {
+.weather-list,
+.food-list {
   display: grid;
   gap: 10px;
   color: var(--muted);
   font-size: 14px;
+}
+
+.food-form {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr) 70px;
+  gap: 8px;
+}
+
+.food-form input,
+.food-form button {
+  height: 40px;
+}
+
+.food-form button {
+  padding: 0;
+}
+
+.food-day {
+  display: grid;
+  gap: 8px;
+}
+
+.food-day h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.food-day-list {
+  display: grid;
+  gap: 8px;
+}
+
+.food-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.food-item strong,
+.food-item span {
+  display: block;
+}
+
+.food-item strong {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.food-item span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.food-item button {
+  width: 72px;
+  height: 34px;
+  padding: 0;
+  font-size: 12px;
+}
+
+.food-item.bought strong {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+
+.food-item.bought {
+  background: #f9fafb;
 }
 
 .important-day {
@@ -806,6 +894,10 @@ button:hover {
     transform: translateY(var(--visual-offset-top, 0px));
   }
 
+  body.keyboard-open .shell {
+    transform: none;
+  }
+
   .login-panel,
   .chat-panel {
     height: var(--app-height, 100dvh);
@@ -833,6 +925,12 @@ button:hover {
 
   .important-days-button {
     width: 60px;
+    height: 28px;
+    font-size: 12px;
+  }
+
+  .food-button {
+    width: 46px;
     height: 28px;
     font-size: 12px;
   }
@@ -890,6 +988,20 @@ button:hover {
     padding: 10px max(8px, env(safe-area-inset-left)) calc(10px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-right));
   }
 
+  body.keyboard-open .composer {
+    position: fixed;
+    right: 0;
+    bottom: max(var(--keyboard-bottom, 0px), env(safe-area-inset-bottom));
+    left: 0;
+    z-index: 30;
+    background: #fff;
+    box-shadow: 0 -10px 24px rgba(15, 23, 42, 0.08);
+  }
+
+  body.keyboard-open .messages {
+    padding-bottom: calc(var(--composer-height, 68px) + 16px);
+  }
+
   .composer button,
   .attach-button,
   .call-button,
@@ -913,6 +1025,14 @@ button:hover {
 
   .important-day {
     grid-template-columns: 1fr;
+  }
+
+  .food-form {
+    grid-template-columns: 1fr;
+  }
+
+  .food-form button {
+    width: 100%;
   }
 
   #localVideo {

@@ -155,6 +155,48 @@ app.get("/api/important-days", requireAuth, async (req, res) => {
   });
 });
 
+app.get("/api/food-items", requireAuth, async (req, res) => {
+  try {
+    res.json({ items: await store.listFoodItems() });
+  } catch {
+    res.status(500).json({ error: "买菜清单加载失败。" });
+  }
+});
+
+app.post("/api/food-items", requireAuth, async (req, res) => {
+  const plannedDate = cleanFoodDate(req.body?.plannedDate);
+  const dishName = String(req.body?.dishName || "").trim().slice(0, 80);
+
+  if (!plannedDate || !dishName) {
+    return res.status(400).json({ error: "请选择日期并输入菜名。" });
+  }
+
+  try {
+    const item = await store.createFoodItem(req.user, plannedDate, dishName);
+    io.emit("food:created", item);
+    res.json({ item });
+  } catch {
+    res.status(500).json({ error: "添加失败，请稍后再试。" });
+  }
+});
+
+app.patch("/api/food-items/:id", requireAuth, async (req, res) => {
+  const id = String(req.params.id || "").trim();
+
+  try {
+    const item = await store.updateFoodItemBought(id, Boolean(req.body?.bought));
+
+    if (!item) {
+      return res.status(404).json({ error: "没有找到这道菜。" });
+    }
+
+    io.emit("food:updated", item);
+    res.json({ item });
+  } catch {
+    res.status(500).json({ error: "更新失败，请稍后再试。" });
+  }
+});
+
 app.post("/api/messages", requireAuth, async (req, res) => {
   const body = String(req.body?.body || "").trim();
   let attachment = null;
@@ -276,6 +318,11 @@ function cleanQuote(rawQuote) {
   }
 
   return { messageId, senderName, body };
+}
+
+function cleanFoodDate(value) {
+  const text = String(value || "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : null;
 }
 
 function todayInChina() {
