@@ -1,4 +1,5 @@
-const CACHE_NAME = "private-chat-shell-v12";
+const CACHE_NAME = "private-chat-shell-v13";
+const SHELL_TIMEOUT_MS = 1200;
 const STATIC_ASSETS = [
   "/",
   "/styles.css?v=20260605-express-red",
@@ -29,6 +30,11 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  if (event.request.mode === "navigate") {
+    event.respondWith(serveCachedShellWhileWaking(event.request));
+    return;
+  }
+
   event.respondWith(
     fetch(event.request)
       .then((response) => {
@@ -39,6 +45,25 @@ self.addEventListener("fetch", (event) => {
       .catch(() => caches.match(event.request))
   );
 });
+
+async function serveCachedShellWhileWaking(request) {
+  const cache = await caches.open(CACHE_NAME);
+  const cachedShell = await cache.match("/");
+  const network = fetch(request).then((response) => {
+    cache.put("/", response.clone());
+    return response;
+  });
+
+  if (!cachedShell) {
+    return network.catch(() => caches.match("/"));
+  }
+
+  const timeout = new Promise((resolve) => {
+    setTimeout(() => resolve(cachedShell), SHELL_TIMEOUT_MS);
+  });
+
+  return Promise.race([network, timeout]).catch(() => cachedShell);
+}
 
 self.addEventListener("push", (event) => {
   let data = {};
