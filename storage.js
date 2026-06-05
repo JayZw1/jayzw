@@ -1,5 +1,5 @@
 const crypto = require("crypto");
-const { DeleteObjectCommand, PutObjectCommand, S3Client } = require("@aws-sdk/client-s3");
+const { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } = require("@aws-sdk/client-s3");
 
 const R2_TOTAL_BYTES = 10 * 1024 * 1024 * 1024;
 
@@ -17,6 +17,9 @@ function createAttachmentStorage() {
       totalBytes: R2_TOTAL_BYTES,
       async saveAttachment(attachment) {
         return attachment;
+      },
+      async getAttachment() {
+        return null;
       },
       async deleteAttachment() {},
     };
@@ -54,6 +57,20 @@ function createAttachmentStorage() {
         size: attachment.size,
       };
     },
+    async getAttachment(attachment) {
+      if (!attachment?.storageKey) {
+        return null;
+      }
+
+      const result = await client.send(new GetObjectCommand({ Bucket: bucket, Key: attachment.storageKey }));
+      const bytes = await streamToBuffer(result.Body);
+
+      return {
+        data: bytes,
+        type: attachment.type || result.ContentType || "application/octet-stream",
+        name: attachment.name || "attachment",
+      };
+    },
     async deleteAttachment(attachment) {
       if (!attachment?.storageKey) {
         return;
@@ -67,6 +84,22 @@ function createAttachmentStorage() {
 function buildAttachmentKey(name) {
   const safeName = String(name || "attachment").replace(/[^\w.\-]+/g, "_").slice(-80);
   return `attachments/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}-${safeName}`;
+}
+
+async function streamToBuffer(stream) {
+  if (!stream) {
+    return Buffer.alloc(0);
+  }
+
+  if (stream.transformToByteArray) {
+    return Buffer.from(await stream.transformToByteArray());
+  }
+
+  const chunks = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
 }
 
 module.exports = { createAttachmentStorage, R2_TOTAL_BYTES };

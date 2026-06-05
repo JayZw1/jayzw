@@ -319,6 +319,30 @@ app.get("/api/messages/:id", requireAuth, async (req, res) => {
   }
 });
 
+app.get("/api/messages/:id/attachment", requireAuth, async (req, res) => {
+  const id = String(req.params.id || "").trim();
+
+  try {
+    const message = await store.getMessage(req.user.id, id);
+
+    if (!message || !message.attachmentName) {
+      return res.status(404).send("附件不存在。");
+    }
+
+    const attachment = await loadMessageAttachment(message);
+
+    if (!attachment) {
+      return res.status(404).send("附件无法打开。");
+    }
+
+    res.setHeader("Content-Type", attachment.type || "application/octet-stream");
+    res.setHeader("Content-Disposition", `${isPreviewableAttachment(attachment.type) ? "inline" : "attachment"}; filename="${encodeURIComponent(attachment.name || "attachment")}"`);
+    res.send(attachment.data);
+  } catch {
+    res.status(500).send("附件加载失败。");
+  }
+});
+
 app.get("/api/storage-usage", requireAuth, async (req, res) => {
   try {
     const stats = await store.getStorageStats();
@@ -694,6 +718,51 @@ async function prepareAttachmentForStorage(attachment) {
   }
 
   return attachmentStorage.saveAttachment(attachment);
+}
+
+async function loadMessageAttachment(message) {
+  const attachment = {
+    name: message.attachmentName,
+    type: message.attachmentType,
+    data: message.attachmentData,
+    storageKey: message.attachmentStorageKey,
+  };
+
+  if (attachment.storageKey) {
+    const storedAttachment = await attachmentStorage.getAttachment(attachment);
+    if (storedAttachment) {
+      return storedAttachment;
+    }
+  }
+
+  const dataUrl = String(attachment.data || "");
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (match) {
+    return {
+      data: Buffer.from(match[2], "base64"),
+      type: attachment.type || match[1],
+      name: attachment.name,
+    };
+  }
+
+  if (/^https?:\/\//i.test(dataUrl)) {
+    const response = await fetch(dataUrl);
+    if (!response.ok) {
+      return null;
+    }
+
+    return {
+      data: Buffer.from(await response.arrayBuffer()),
+      type: attachment.type || response.headers.get("content-type") || "application/octet-stream",
+      name: attachment.name,
+    };
+  }
+
+  return null;
+}
+
+function isPreviewableAttachment(type) {
+  return String(type || "").startsWith("image/") || String(type || "").startsWith("video/");
 }
 
 function formatBytes(bytes) {

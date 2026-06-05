@@ -429,15 +429,16 @@ function insertMessageElement(item, messageId) {
 }
 
 function renderAttachment(message, bubble) {
-  if (!message.attachmentData) {
+  if (!message.attachmentData && !message.attachmentStorageKey && !message.attachmentName) {
     return;
   }
 
   const isImage = message.attachmentType?.startsWith("image/");
   const isVideo = message.attachmentType?.startsWith("video/");
+  const attachmentUrl = `/api/messages/${encodeURIComponent(message.id)}/attachment`;
   const link = document.createElement("a");
   link.className = "attachment";
-  link.href = message.attachmentData;
+  link.href = attachmentUrl;
   if (!isImage && !isVideo) {
     link.download = message.attachmentName || "attachment";
   }
@@ -447,18 +448,28 @@ function renderAttachment(message, bubble) {
   if (isImage) {
     const image = document.createElement("img");
     image.alt = message.attachmentName || "附件";
-    image.src = message.attachmentData;
+    image.src = attachmentUrl;
     image.loading = "lazy";
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      openAttachmentViewer(message, attachmentUrl);
+    });
     link.append(image);
   } else if (isVideo) {
     const video = document.createElement("video");
-    video.src = message.attachmentData;
+    video.src = attachmentUrl;
     video.controls = true;
     video.preload = "metadata";
     video.playsInline = true;
     video.addEventListener("click", (event) => event.stopPropagation());
-    link.addEventListener("click", (event) => event.preventDefault());
-    link.append(video);
+    const openLabel = document.createElement("span");
+    openLabel.className = "attachment-open-label";
+    openLabel.textContent = "点开视频预览";
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      openAttachmentViewer(message, attachmentUrl);
+    });
+    link.append(video, openLabel);
   } else {
     const label = document.createElement("span");
     label.className = "attachment-file";
@@ -467,6 +478,56 @@ function renderAttachment(message, bubble) {
   }
 
   bubble.append(link);
+}
+
+function openAttachmentViewer(message, url) {
+  const isImage = message.attachmentType?.startsWith("image/");
+  const isVideo = message.attachmentType?.startsWith("video/");
+
+  if (!isImage && !isVideo) {
+    window.open(url, "_blank", "noopener");
+    return;
+  }
+
+  let panel = document.querySelector("#attachmentViewerPanel");
+
+  if (!panel) {
+    panel = document.createElement("div");
+    panel.id = "attachmentViewerPanel";
+    panel.className = "attachment-viewer-panel hidden";
+    panel.innerHTML = `
+      <div class="attachment-viewer-card">
+        <button class="attachment-viewer-close" type="button" aria-label="关闭">×</button>
+        <div class="attachment-viewer-body"></div>
+      </div>
+    `;
+    document.body.append(panel);
+    panel.addEventListener("click", (event) => {
+      if (event.target === panel || event.target.closest(".attachment-viewer-close")) {
+        panel.classList.add("hidden");
+        panel.querySelector(".attachment-viewer-body").innerHTML = "";
+      }
+    });
+  }
+
+  const body = panel.querySelector(".attachment-viewer-body");
+  body.innerHTML = "";
+
+  if (isImage) {
+    const image = document.createElement("img");
+    image.alt = message.attachmentName || "图片";
+    image.src = url;
+    body.append(image);
+  } else {
+    const video = document.createElement("video");
+    video.src = url;
+    video.controls = true;
+    video.autoplay = true;
+    video.playsInline = true;
+    body.append(video);
+  }
+
+  panel.classList.remove("hidden");
 }
 
 function updateMessageElement(item, message) {
