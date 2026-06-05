@@ -1098,13 +1098,13 @@ function setDiaryVisibleMonth(year, month) {
 
 async function openFoodPanel() {
   foodPanel?.classList.remove("hidden");
-  foodDateInput.value ||= todayInputValue();
+  foodDateInput.value = todayInputValue();
   await loadFoodItems();
 }
 
 async function openSchedulePanel() {
   schedulePanel?.classList.remove("hidden");
-  scheduleDateInput.value ||= todayInputValue();
+  scheduleDateInput.value = todayInputValue();
   await loadScheduleItems();
 }
 
