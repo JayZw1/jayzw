@@ -39,7 +39,10 @@
           <div>
             <div class="title-row">
               <h1>碎碎念收件箱</h1>
-              <button class="ghost important-days-button" id="importantDaysButton" type="button">重要日子</button>
+              <div class="header-tool-stack">
+                <button class="ghost other-feature-button" id="otherFeatureButton" type="button">其他功能</button>
+                <button class="ghost important-days-button" id="importantDaysButton" type="button">重要日子</button>
+              </div>
               <div class="header-tool-stack">
                 <button class="ghost food-button" id="foodButton" type="button">买菜</button>
                 <button class="ghost schedule-button" id="scheduleButton" type="button">行程</button>
@@ -124,6 +127,16 @@
             <button class="ghost icon-control" id="closeImportantDaysButton" type="button" title="关闭">×</button>
           </div>
           <div class="important-days-list" id="importantDaysList">正在计算...</div>
+        </div>
+      </div>
+
+      <div class="other-feature-panel hidden" id="otherFeaturePanel">
+        <div class="other-feature-card">
+          <div class="modal-title">
+            <h2>其他功能</h2>
+            <button class="ghost icon-control" id="closeOtherFeatureButton" type="button" title="关闭">×</button>
+          </div>
+          <div class="other-feature-list" id="otherFeatureList"></div>
         </div>
       </div>
 

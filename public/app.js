@@ -38,6 +38,10 @@ const contextMenu = document.querySelector("#contextMenu");
 const statusText = document.querySelector("#statusText");
 const logoutButton = document.querySelector("#logoutButton");
 const clearHistoryButton = document.querySelector("#clearHistoryButton");
+const otherFeatureButton = document.querySelector("#otherFeatureButton");
+const otherFeaturePanel = document.querySelector("#otherFeaturePanel");
+const otherFeatureList = document.querySelector("#otherFeatureList");
+const closeOtherFeatureButton = document.querySelector("#closeOtherFeatureButton");
 const importantDaysButton = document.querySelector("#importantDaysButton");
 const importantDaysPanel = document.querySelector("#importantDaysPanel");
 const importantDaysList = document.querySelector("#importantDaysList");
@@ -131,6 +135,41 @@ const EMOJIS = [
   "🍜",
   "☕",
   "🎂",
+];
+const OTHER_FEATURES = [
+  {
+    title: "随机小纸条",
+    action: "换一句",
+    items: [
+      "今天也想认真听你说话。",
+      "给对方发一句：我刚刚突然想到你。",
+      "今天的抱抱额度不设上限。",
+      "把现在最想对对方说的一句话发出去。",
+      "今晚留十分钟，只聊开心的事。",
+    ],
+  },
+  {
+    title: "默契问题",
+    action: "换一题",
+    items: [
+      "如果明天一起放假，第一件事想做什么？",
+      "最近哪一瞬间觉得对方很可爱？",
+      "下一次约会想吃什么？",
+      "如果给今天打一个恋爱分数，会是多少？",
+      "想让对方最近多陪你做哪件小事？",
+    ],
+  },
+  {
+    title: "约会灵感",
+    action: "换一个",
+    items: [
+      "一起散步买一杯喝的，路上不看手机。",
+      "各自选一道菜，凑成今晚菜单。",
+      "找一部老电影，边看边吐槽。",
+      "拍一张今天的合照，留给以后翻。",
+      "互相给对方点一首歌。",
+    ],
+  },
 ];
 
 function syncViewportHeight() {
@@ -514,6 +553,10 @@ function closeImportantDaysPanel() {
   importantDaysPanel?.classList.add("hidden");
 }
 
+function closeOtherFeaturePanel() {
+  otherFeaturePanel?.classList.add("hidden");
+}
+
 function closeWeatherPanel() {
   weatherPanel?.classList.add("hidden");
 }
@@ -544,6 +587,41 @@ async function openSchedulePanel() {
   schedulePanel?.classList.remove("hidden");
   scheduleDateInput.value ||= todayInputValue();
   await loadScheduleItems();
+}
+
+function pickRandom(items) {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+function renderOtherFeatures() {
+  if (!otherFeatureList) {
+    return;
+  }
+
+  otherFeatureList.innerHTML = "";
+
+  for (const feature of OTHER_FEATURES) {
+    const item = document.createElement("article");
+    item.className = "other-feature-item";
+    const title = document.createElement("h3");
+    title.textContent = feature.title;
+    const text = document.createElement("p");
+    text.textContent = pickRandom(feature.items);
+    const button = document.createElement("button");
+    button.className = "ghost";
+    button.type = "button";
+    button.textContent = feature.action;
+    button.addEventListener("click", () => {
+      text.textContent = pickRandom(feature.items);
+    });
+    item.append(title, text, button);
+    otherFeatureList.append(item);
+  }
+}
+
+function openOtherFeaturePanel() {
+  otherFeaturePanel?.classList.remove("hidden");
+  renderOtherFeatures();
 }
 
 async function loadFoodItems() {
@@ -1824,6 +1902,13 @@ document.addEventListener("click", (event) => {
   ) {
     closeImportantDaysPanel();
   }
+  if (
+    otherFeaturePanel &&
+    !otherFeaturePanel.classList.contains("hidden") &&
+    event.target === otherFeaturePanel
+  ) {
+    closeOtherFeaturePanel();
+  }
   if (weatherPanel && !weatherPanel.classList.contains("hidden") && event.target === weatherPanel) {
     closeWeatherPanel();
   }
@@ -1881,6 +1966,8 @@ videoCallButton?.addEventListener("click", () => {
 acceptCallButton?.addEventListener("click", acceptCall);
 declineCallButton?.addEventListener("click", declineCall);
 endCallButton?.addEventListener("click", () => endCall(true));
+otherFeatureButton?.addEventListener("click", openOtherFeaturePanel);
+closeOtherFeatureButton?.addEventListener("click", closeOtherFeaturePanel);
 importantDaysButton?.addEventListener("click", openImportantDaysPanel);
 closeImportantDaysButton?.addEventListener("click", closeImportantDaysPanel);
 foodButton?.addEventListener("click", openFoodPanel);
