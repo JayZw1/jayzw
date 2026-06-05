@@ -41,6 +41,15 @@ function createSqliteStore(databasePath) {
       created_by_name TEXT NOT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS schedule_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      planned_date TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_by_id TEXT NOT NULL,
+      created_by_name TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
   for (const statement of [
     "ALTER TABLE messages ADD COLUMN attachment_name TEXT",
@@ -142,6 +151,31 @@ function createSqliteStore(databasePath) {
     WHERE id = ?
   `);
   const deleteFoodItem = db.prepare("DELETE FROM food_items WHERE id = ?");
+  const selectScheduleItems = db.prepare(`
+    SELECT id,
+           planned_date AS plannedDate,
+           content,
+           created_by_id AS createdById,
+           created_by_name AS createdByName,
+           created_at AS createdAt
+    FROM schedule_items
+    ORDER BY planned_date ASC, id ASC
+  `);
+  const insertScheduleItem = db.prepare(`
+    INSERT INTO schedule_items (planned_date, content, created_by_id, created_by_name)
+    VALUES (?, ?, ?, ?)
+  `);
+  const selectScheduleItem = db.prepare(`
+    SELECT id,
+           planned_date AS plannedDate,
+           content,
+           created_by_id AS createdById,
+           created_by_name AS createdByName,
+           created_at AS createdAt
+    FROM schedule_items
+    WHERE id = ?
+  `);
+  const deleteScheduleItem = db.prepare("DELETE FROM schedule_items WHERE id = ?");
 
   return {
     async init() {},
@@ -189,6 +223,18 @@ function createSqliteStore(databasePath) {
       deleteFoodItem.run(id);
       return item || null;
     },
+    async listScheduleItems() {
+      return selectScheduleItems.all();
+    },
+    async createScheduleItem(user, plannedDate, content) {
+      const result = insertScheduleItem.run(plannedDate, content, user.id, user.displayName);
+      return selectScheduleItem.get(result.lastInsertRowid);
+    },
+    async deleteScheduleItem(id) {
+      const item = selectScheduleItem.get(id);
+      deleteScheduleItem.run(id);
+      return item || null;
+    },
   };
 }
 
@@ -228,6 +274,15 @@ function createPostgresStore(databaseUrl) {
           planned_date DATE NOT NULL,
           dish_name TEXT NOT NULL,
           bought_at TIMESTAMPTZ,
+          created_by_id TEXT NOT NULL,
+          created_by_name TEXT NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE TABLE IF NOT EXISTS schedule_items (
+          id BIGSERIAL PRIMARY KEY,
+          planned_date DATE NOT NULL,
+          content TEXT NOT NULL,
           created_by_id TEXT NOT NULL,
           created_by_name TEXT NOT NULL,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -387,6 +442,42 @@ function createPostgresStore(databaseUrl) {
     async deleteFoodItem(id) {
       const result = await pool.query(
         `DELETE FROM food_items
+         WHERE id = $1
+         RETURNING id::text AS "id"`,
+        [id]
+      );
+      return result.rows[0] || null;
+    },
+    async listScheduleItems() {
+      const result = await pool.query(
+        `SELECT id::text AS "id",
+                to_char(planned_date, 'YYYY-MM-DD') AS "plannedDate",
+                content,
+                created_by_id AS "createdById",
+                created_by_name AS "createdByName",
+                created_at AS "createdAt"
+         FROM schedule_items
+         ORDER BY planned_date ASC, id ASC`
+      );
+      return result.rows;
+    },
+    async createScheduleItem(user, plannedDate, content) {
+      const result = await pool.query(
+        `INSERT INTO schedule_items (planned_date, content, created_by_id, created_by_name)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id::text AS "id",
+                   to_char(planned_date, 'YYYY-MM-DD') AS "plannedDate",
+                   content,
+                   created_by_id AS "createdById",
+                   created_by_name AS "createdByName",
+                   created_at AS "createdAt"`,
+        [plannedDate, content, user.id, user.displayName]
+      );
+      return result.rows[0];
+    },
+    async deleteScheduleItem(id) {
+      const result = await pool.query(
+        `DELETE FROM schedule_items
          WHERE id = $1
          RETURNING id::text AS "id"`,
         [id]

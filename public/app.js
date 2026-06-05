@@ -9,6 +9,7 @@ const state = {
   renderedMessages: new Set(),
   weather: null,
   foodItems: [],
+  scheduleItems: [],
 };
 
 const loginPanel = document.querySelector("#loginPanel");
@@ -48,6 +49,13 @@ const foodDateInput = document.querySelector("#foodDateInput");
 const foodNameInput = document.querySelector("#foodNameInput");
 const foodList = document.querySelector("#foodList");
 const closeFoodButton = document.querySelector("#closeFoodButton");
+const scheduleButton = document.querySelector("#scheduleButton");
+const schedulePanel = document.querySelector("#schedulePanel");
+const scheduleForm = document.querySelector("#scheduleForm");
+const scheduleDateInput = document.querySelector("#scheduleDateInput");
+const scheduleContentInput = document.querySelector("#scheduleContentInput");
+const scheduleList = document.querySelector("#scheduleList");
+const closeScheduleButton = document.querySelector("#closeScheduleButton");
 const todayBadge = document.querySelector("#todayBadge");
 const todayWeatherText = document.querySelector("#todayWeatherText");
 const todayDateText = document.querySelector("#todayDateText");
@@ -136,7 +144,12 @@ function syncViewportHeight() {
     !foodPanel.classList.contains("hidden") &&
     (activeElement === foodDateInput || activeElement === foodNameInput);
   const foodNameFocused = foodFocused && activeElement === foodNameInput;
-  const anyKeyboardFocused = composerFocused || foodFocused;
+  const scheduleFocused =
+    schedulePanel &&
+    !schedulePanel.classList.contains("hidden") &&
+    (activeElement === scheduleDateInput || activeElement === scheduleContentInput);
+  const scheduleContentFocused = scheduleFocused && activeElement === scheduleContentInput;
+  const anyKeyboardFocused = composerFocused || foodFocused || scheduleFocused;
   if (!anyKeyboardFocused || height > baseViewportHeight) {
     baseViewportHeight = Math.max(baseViewportHeight, height, window.innerHeight);
   }
@@ -153,6 +166,8 @@ function syncViewportHeight() {
   document.body.classList.toggle("composer-keyboard-open", composerFocused);
   document.body.classList.toggle("food-keyboard-open", foodFocused);
   document.body.classList.toggle("food-name-keyboard-open", foodNameFocused);
+  document.body.classList.toggle("schedule-keyboard-open", scheduleFocused);
+  document.body.classList.toggle("schedule-content-keyboard-open", scheduleContentFocused);
 }
 
 function syncViewportSoon() {
@@ -507,6 +522,10 @@ function closeFoodPanel() {
   foodPanel?.classList.add("hidden");
 }
 
+function closeSchedulePanel() {
+  schedulePanel?.classList.add("hidden");
+}
+
 function todayInputValue() {
   const date = new Date();
   const year = date.getFullYear();
@@ -519,6 +538,12 @@ async function openFoodPanel() {
   foodPanel?.classList.remove("hidden");
   foodDateInput.value ||= todayInputValue();
   await loadFoodItems();
+}
+
+async function openSchedulePanel() {
+  schedulePanel?.classList.remove("hidden");
+  scheduleDateInput.value ||= todayInputValue();
+  await loadScheduleItems();
 }
 
 async function loadFoodItems() {
@@ -691,6 +716,145 @@ function upsertFoodItem(item) {
 function removeFoodItem({ id }) {
   state.foodItems = state.foodItems.filter((item) => String(item.id) !== String(id));
   renderFoodItems();
+}
+
+async function loadScheduleItems() {
+  if (!scheduleList) {
+    return;
+  }
+
+  scheduleList.textContent = "正在加载...";
+
+  try {
+    const response = await api("/api/schedule-items");
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "行程加载失败。");
+    }
+
+    state.scheduleItems = data.items || [];
+    renderScheduleItems();
+  } catch (error) {
+    scheduleList.textContent = error.message;
+  }
+}
+
+function renderScheduleItems() {
+  if (!scheduleList) {
+    return;
+  }
+
+  scheduleList.innerHTML = "";
+
+  if (!state.scheduleItems.length) {
+    scheduleList.textContent = "还没有记录行程。";
+    return;
+  }
+
+  const groups = new Map();
+  for (const item of state.scheduleItems) {
+    const group = groups.get(item.plannedDate) || [];
+    group.push(item);
+    groups.set(item.plannedDate, group);
+  }
+
+  for (const [date, items] of groups) {
+    const section = document.createElement("section");
+    section.className = "schedule-day";
+    const title = document.createElement("h3");
+    title.textContent = formatFoodDate(date);
+    const list = document.createElement("div");
+    list.className = "schedule-day-list";
+
+    for (const item of items) {
+      list.append(renderScheduleItem(item));
+    }
+
+    section.append(title, list);
+    scheduleList.append(section);
+  }
+}
+
+function renderScheduleItem(item) {
+  const row = document.createElement("article");
+  row.className = "schedule-item";
+  row.dataset.scheduleId = item.id;
+  row.innerHTML = `
+    <div>
+      <strong></strong>
+      <span></span>
+    </div>
+    <button class="ghost danger-control" type="button">删除</button>
+  `;
+  row.querySelector("strong").textContent = item.content;
+  row.querySelector("span").textContent = `${item.createdByName || "我们"} 添加`;
+  row.querySelector("button").addEventListener("click", () => deleteScheduleItem(item));
+  return row;
+}
+
+async function addScheduleItem(event) {
+  event.preventDefault();
+  const plannedDate = scheduleDateInput.value || todayInputValue();
+  const content = scheduleContentInput.value.trim();
+
+  if (!content) {
+    return;
+  }
+
+  scheduleContentInput.value = "";
+
+  try {
+    const response = await api("/api/schedule-items", {
+      method: "POST",
+      body: JSON.stringify({ plannedDate, content }),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "添加失败。");
+    }
+  } catch (error) {
+    scheduleContentInput.value = content;
+    statusText.textContent = error.message;
+  }
+}
+
+async function deleteScheduleItem(item) {
+  try {
+    const response = await api(`/api/schedule-items/${item.id}`, {
+      method: "DELETE",
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "删除失败。");
+    }
+  } catch (error) {
+    statusText.textContent = error.message;
+  }
+}
+
+function upsertScheduleItem(item) {
+  const index = state.scheduleItems.findIndex((current) => String(current.id) === String(item.id));
+
+  if (index >= 0) {
+    state.scheduleItems[index] = item;
+  } else {
+    state.scheduleItems.push(item);
+  }
+
+  state.scheduleItems.sort((left, right) =>
+    left.plannedDate === right.plannedDate
+      ? Number(left.id) - Number(right.id)
+      : left.plannedDate.localeCompare(right.plannedDate)
+  );
+  renderScheduleItems();
+}
+
+function removeScheduleItem({ id }) {
+  state.scheduleItems = state.scheduleItems.filter((item) => String(item.id) !== String(id));
+  renderScheduleItems();
 }
 
 function renderTodayInfo(today) {
@@ -1473,6 +1637,8 @@ function connectSocket() {
   state.socket.on("food:created", upsertFoodItem);
   state.socket.on("food:updated", upsertFoodItem);
   state.socket.on("food:deleted", removeFoodItem);
+  state.socket.on("schedule:created", upsertScheduleItem);
+  state.socket.on("schedule:deleted", removeScheduleItem);
   state.socket.on("call:offer", receiveCall);
   state.socket.on("call:answer", applyAnswer);
   state.socket.on("call:ice", applyIce);
@@ -1565,6 +1731,10 @@ foodDateInput?.addEventListener("focus", syncViewportSoon);
 foodDateInput?.addEventListener("blur", syncViewportSoon);
 foodNameInput?.addEventListener("focus", syncViewportSoon);
 foodNameInput?.addEventListener("blur", syncViewportSoon);
+scheduleDateInput?.addEventListener("focus", syncViewportSoon);
+scheduleDateInput?.addEventListener("blur", syncViewportSoon);
+scheduleContentInput?.addEventListener("focus", syncViewportSoon);
+scheduleContentInput?.addEventListener("blur", syncViewportSoon);
 
 logoutButton.addEventListener("click", () => {
   localStorage.removeItem("chat_token");
@@ -1625,6 +1795,9 @@ document.addEventListener("click", (event) => {
   if (foodPanel && !foodPanel.classList.contains("hidden") && event.target === foodPanel) {
     closeFoodPanel();
   }
+  if (schedulePanel && !schedulePanel.classList.contains("hidden") && event.target === schedulePanel) {
+    closeSchedulePanel();
+  }
 });
 
 attachButton.addEventListener("click", () => {
@@ -1678,6 +1851,9 @@ closeImportantDaysButton?.addEventListener("click", closeImportantDaysPanel);
 foodButton?.addEventListener("click", openFoodPanel);
 foodForm?.addEventListener("submit", addFoodItem);
 closeFoodButton?.addEventListener("click", closeFoodPanel);
+scheduleButton?.addEventListener("click", openSchedulePanel);
+scheduleForm?.addEventListener("submit", addScheduleItem);
+closeScheduleButton?.addEventListener("click", closeSchedulePanel);
 todayBadge?.addEventListener("click", openWeatherPanel);
 closeWeatherButton?.addEventListener("click", closeWeatherPanel);
 

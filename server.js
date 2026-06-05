@@ -214,6 +214,48 @@ app.delete("/api/food-items/:id", requireAuth, async (req, res) => {
   }
 });
 
+app.get("/api/schedule-items", requireAuth, async (req, res) => {
+  try {
+    res.json({ items: await store.listScheduleItems() });
+  } catch {
+    res.status(500).json({ error: "行程加载失败。" });
+  }
+});
+
+app.post("/api/schedule-items", requireAuth, async (req, res) => {
+  const plannedDate = cleanFoodDate(req.body?.plannedDate);
+  const content = String(req.body?.content || "").trim().slice(0, 120);
+
+  if (!plannedDate || !content) {
+    return res.status(400).json({ error: "请选择日期并输入行程。" });
+  }
+
+  try {
+    const item = await store.createScheduleItem(req.user, plannedDate, content);
+    io.emit("schedule:created", item);
+    res.json({ item });
+  } catch {
+    res.status(500).json({ error: "添加失败，请稍后再试。" });
+  }
+});
+
+app.delete("/api/schedule-items/:id", requireAuth, async (req, res) => {
+  const id = String(req.params.id || "").trim();
+
+  try {
+    const item = await store.deleteScheduleItem(id);
+
+    if (!item) {
+      return res.status(404).json({ error: "没有找到这个行程。" });
+    }
+
+    io.emit("schedule:deleted", { id: String(id) });
+    res.json({ ok: true, id: String(id) });
+  } catch {
+    res.status(500).json({ error: "删除失败，请稍后再试。" });
+  }
+});
+
 
 app.post("/api/messages", requireAuth, async (req, res) => {
   const body = String(req.body?.body || "").trim();

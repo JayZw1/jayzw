@@ -40,7 +40,10 @@
             <div class="title-row">
               <h1>碎碎念收件箱</h1>
               <button class="ghost important-days-button" id="importantDaysButton" type="button">重要日子</button>
-              <button class="ghost food-button" id="foodButton" type="button">买菜</button>
+              <div class="header-tool-stack">
+                <button class="ghost food-button" id="foodButton" type="button">买菜</button>
+                <button class="ghost schedule-button" id="scheduleButton" type="button">行程</button>
+              </div>
               <button class="today-badge" id="todayBadge" type="button" title="查看未来天气" hidden>
                 <strong id="todayWeatherText" hidden></strong>
                 <span id="todayDateText"></span>
@@ -146,6 +149,21 @@
             <button type="submit">添加</button>
           </form>
           <div class="food-list" id="foodList">正在加载...</div>
+        </div>
+      </div>
+
+      <div class="schedule-panel hidden" id="schedulePanel">
+        <div class="schedule-card">
+          <div class="modal-title">
+            <h2>行程</h2>
+            <button class="ghost icon-control" id="closeScheduleButton" type="button" title="关闭">×</button>
+          </div>
+          <form class="schedule-form" id="scheduleForm">
+            <input id="scheduleDateInput" type="date" required />
+            <input id="scheduleContentInput" maxlength="120" placeholder="输入这天的行程" required />
+            <button type="submit">添加</button>
+          </form>
+          <div class="schedule-list" id="scheduleList">正在加载...</div>
         </div>
       </div>
     </main>

@@ -214,6 +214,18 @@ button:hover {
   font-size: 13px;
 }
 
+.header-tool-stack {
+  display: grid;
+  gap: 4px;
+}
+
+.schedule-button {
+  width: 52px;
+  height: 28px;
+  padding: 0;
+  font-size: 12px;
+}
+
 .today-badge {
   display: grid;
   gap: 4px;
@@ -669,7 +681,8 @@ button:hover {
 
 .important-days-panel,
 .weather-panel,
-.food-panel {
+.food-panel,
+.schedule-panel {
   position: fixed;
   inset: 0;
   z-index: 35;
@@ -681,7 +694,8 @@ button:hover {
 
 .important-days-card,
 .weather-card,
-.food-card {
+.food-card,
+.schedule-card {
   display: grid;
   gap: 14px;
   width: min(100%, 420px);
@@ -700,6 +714,10 @@ button:hover {
   width: min(100%, 460px);
 }
 
+.schedule-card {
+  width: min(100%, 460px);
+}
+
 .modal-title {
   display: flex;
   align-items: center;
@@ -714,45 +732,54 @@ button:hover {
 
 .important-days-list,
 .weather-list,
-.food-list {
+.food-list,
+.schedule-list {
   display: grid;
   gap: 10px;
   color: var(--muted);
   font-size: 14px;
 }
 
-.food-form {
+.food-form,
+.schedule-form {
   display: grid;
   grid-template-columns: 132px minmax(0, 1fr) 70px;
   gap: 8px;
 }
 
 .food-form input,
-.food-form button {
+.food-form button,
+.schedule-form input,
+.schedule-form button {
   height: 40px;
 }
 
-.food-form button {
+.food-form button,
+.schedule-form button {
   padding: 0;
 }
 
-.food-day {
+.food-day,
+.schedule-day {
   display: grid;
   gap: 8px;
 }
 
-.food-day h3 {
+.food-day h3,
+.schedule-day h3 {
   margin: 0;
   color: var(--text);
   font-size: 14px;
 }
 
-.food-day-list {
+.food-day-list,
+.schedule-day-list {
   display: grid;
   gap: 8px;
 }
 
-.food-item {
+.food-item,
+.schedule-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -763,18 +790,29 @@ button:hover {
 }
 
 .food-item strong,
-.food-item span {
+.food-item span,
+.schedule-item strong,
+.schedule-item span {
   display: block;
 }
 
-.food-item strong {
+.food-item strong,
+.schedule-item strong {
   color: var(--text);
   overflow-wrap: anywhere;
 }
 
-.food-item span {
+.food-item span,
+.schedule-item span {
   margin-top: 3px;
   color: var(--muted);
+  font-size: 12px;
+}
+
+.schedule-item button {
+  width: 48px;
+  height: 34px;
+  padding: 0;
   font-size: 12px;
 }
 
@@ -951,6 +989,12 @@ button:hover {
     font-size: 12px;
   }
 
+  .schedule-button {
+    width: 46px;
+    height: 28px;
+    font-size: 12px;
+  }
+
   .today-badge {
     font-size: 10px;
     min-width: 0;
@@ -1067,6 +1111,52 @@ button:hover {
     overflow-y: auto;
   }
 
+  body.schedule-keyboard-open .schedule-panel {
+    align-items: end;
+    padding-bottom: calc(max(var(--keyboard-bottom, 0px), env(safe-area-inset-bottom)) + 10px);
+  }
+
+  body.schedule-keyboard-open .schedule-card {
+    width: calc(100% - 20px);
+    max-height: calc(var(--app-height, 100dvh) - max(var(--keyboard-bottom, 0px), env(safe-area-inset-bottom)) - 20px);
+    overflow-y: auto;
+  }
+
+  body.schedule-content-keyboard-open .schedule-panel {
+    align-items: center;
+    padding-bottom: 18px;
+  }
+
+  body.schedule-content-keyboard-open .schedule-form {
+    position: fixed;
+    right: 10px;
+    bottom: calc(max(var(--keyboard-bottom, 0px), env(safe-area-inset-bottom)) + 10px);
+    left: 10px;
+    z-index: 45;
+    grid-template-columns: 1fr;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 -10px 24px rgba(15, 23, 42, 0.1);
+    padding: 8px;
+  }
+
+  body.schedule-content-keyboard-open #scheduleDateInput,
+  body.schedule-content-keyboard-open .schedule-form button[type="submit"] {
+    display: none;
+  }
+
+  body.schedule-content-keyboard-open #scheduleContentInput {
+    height: 44px;
+    font-size: 16px;
+  }
+
+  body.schedule-content-keyboard-open .schedule-list {
+    margin-bottom: 76px;
+    max-height: 32dvh;
+    overflow-y: auto;
+  }
+
   .composer button,
   .attach-button,
   .call-button,
@@ -1092,15 +1182,18 @@ button:hover {
     grid-template-columns: 1fr;
   }
 
-  .food-form {
+  .food-form,
+  .schedule-form {
     grid-template-columns: 1fr;
   }
 
-  .food-form button {
+  .food-form button,
+  .schedule-form button {
     width: 100%;
   }
 
-  .food-item {
+  .food-item,
+  .schedule-item {
     grid-template-columns: 1fr;
   }
 
