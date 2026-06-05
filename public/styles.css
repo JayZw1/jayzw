@@ -1417,10 +1417,10 @@ button:hover {
   .title-row {
     display: grid;
     grid-template-areas:
-      "title feature tools actions"
-      "title feature tools actions"
-      "status status status status";
-    grid-template-columns: minmax(110px, 1fr) 52px 42px 40px;
+      "title feature tools spacer actions"
+      "title feature tools spacer actions"
+      "status status status status status";
+    grid-template-columns: minmax(72px, 1fr) 52px 42px minmax(0, 38px) 40px;
     column-gap: 6px;
     row-gap: 5px;
     width: 100%;
@@ -1452,9 +1452,21 @@ button:hover {
   .header-status-row {
     display: grid;
     grid-area: status;
-    grid-template-columns: minmax(0, 1fr) 52px minmax(84px, 98px);
+    grid-template-columns: minmax(72px, 1fr) 52px 42px minmax(0, 38px) 40px;
     align-items: center;
     gap: 6px;
+  }
+
+  .header-status-row p {
+    grid-column: 1;
+  }
+
+  .header-status-row .message-search-button {
+    grid-column: 2;
+  }
+
+  .header-status-row .header-weather-stack {
+    grid-column: 3 / 6;
   }
 
   .message-search-button {
