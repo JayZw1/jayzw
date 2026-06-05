@@ -2906,6 +2906,10 @@ function connectSocket() {
   state.socket.on("call:end", () => cleanupCall());
 }
 
+function loadHeaderInfoInBackground() {
+  Promise.allSettled([loadTodayInfo(), loadUpcomingSummaries()]).catch(() => {});
+}
+
 async function boot() {
   if (!state.token) {
     showLogin();
@@ -2922,11 +2926,11 @@ async function boot() {
 
     state.user = data.user;
     showChat();
-    await loadTodayInfo();
-    await loadUpcomingSummaries();
+    statusText.textContent = "正在加载消息...";
     await loadMessages();
     lastResumeRefreshAt = Date.now();
     connectSocket();
+    loadHeaderInfoInBackground();
   } catch {
     localStorage.removeItem("chat_token");
     state.token = null;
@@ -2958,11 +2962,11 @@ loginForm.addEventListener("submit", async (event) => {
   localStorage.setItem("chat_token", data.token);
   loginForm.reset();
   showChat();
-  await loadTodayInfo();
-  await loadUpcomingSummaries();
+  statusText.textContent = "正在加载消息...";
   await loadMessages();
   lastResumeRefreshAt = Date.now();
   connectSocket();
+  loadHeaderInfoInBackground();
 });
 
 messageForm.addEventListener("submit", async (event) => {

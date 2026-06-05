@@ -144,6 +144,17 @@ function publicUser(user) {
   };
 }
 
+function publicMessage(message) {
+  if (!message?.attachmentName) {
+    return message;
+  }
+
+  return {
+    ...message,
+    attachmentData: null,
+  };
+}
+
 function signToken(user) {
   return jwt.sign(publicUser(user), JWT_SECRET, { expiresIn: TOKEN_MAX_AGE });
 }
@@ -617,13 +628,13 @@ app.post("/api/messages", requireAuth, async (req, res) => {
   try {
     attachment = await prepareAttachmentForStorage(attachment);
     const message = await store.createMessage(req.user, body, attachment, quote);
-    io.emit("message:new", message);
+    io.emit("message:new", publicMessage(message));
     sendPushToOthers(req.user.id, {
       title: "碎碎念收件箱",
       body: "收到一条新消息",
       tag: "private-chat-message",
     }).catch(() => {});
-    res.json({ message });
+    res.json({ message: publicMessage(message) });
   } catch {
     res.status(500).json({ error: "发送失败，请稍后再试。" });
   }
@@ -1080,7 +1091,7 @@ io.on("connection", (socket) => {
     try {
       attachment = await prepareAttachmentForStorage(attachment);
       const message = await store.createMessage(socket.user, body, attachment, quote);
-      io.emit("message:new", message);
+      io.emit("message:new", publicMessage(message));
       sendPushToOthers(socket.user.id, {
         title: "碎碎念收件箱",
         body: "收到一条新消息",
@@ -1177,7 +1188,7 @@ io.on("connection", (socket) => {
 
     try {
       const message = await store.createMessage(socket.user, body, null, null);
-      io.emit("message:new", message);
+      io.emit("message:new", publicMessage(message));
       sendPushToOthers(socket.user.id, {
         title: "碎碎念收件箱",
         body: "收到一条新消息",
@@ -1215,7 +1226,7 @@ io.on("connection", (socket) => {
 
     try {
       const message = await store.createMessage(socket.user, body, null, null);
-      io.emit("message:new", message);
+      io.emit("message:new", publicMessage(message));
       sendPushToOthers(socket.user.id, {
         title: "碎碎念收件箱",
         body: "收到一条新消息",
