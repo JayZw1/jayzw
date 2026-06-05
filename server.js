@@ -325,9 +325,9 @@ app.get("/api/important-days", requireAuth, async (req, res) => {
       weather: await getShundeWeather(),
     },
     days: [
-      buildSolarDay("结婚纪念日", "公历3月2日", 3, 2),
-      buildLunarDay("zw's birthday", "农历2月16日", 2, 16),
-      buildLunarDay("xht's birthday", "农历12月3日", 12, 3),
+      buildSolarDay("结婚纪念日 👫🌹💍", "公历3月2日", 3, 2),
+      buildLunarDay("zw's birthday 👱‍♂️🎂", "农历2月16日", 2, 16),
+      buildLunarDay("xht's birthday 👩🎂", "农历12月3日", 12, 3),
     ],
   });
 });
@@ -817,9 +817,9 @@ function buildUpcomingFestival() {
   }
 
   const importantDays = [
-    buildSolarDay("结婚纪念日", "公历3月2日", 3, 2),
-    buildLunarDay("zw's birthday", "农历2月16日", 2, 16),
-    buildLunarDay("xht's birthday", "农历12月3日", 12, 3),
+    buildSolarDay("结婚纪念日 👫🌹💍", "公历3月2日", 3, 2),
+    buildLunarDay("zw's birthday 👱‍♂️🎂", "农历2月16日", 2, 16),
+    buildLunarDay("xht's birthday 👩🎂", "农历12月3日", 12, 3),
   ].filter((day) => day.nextDate === nearestDate);
 
   return {
