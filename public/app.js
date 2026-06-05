@@ -234,6 +234,10 @@ function syncViewportHeight() {
   const height = viewport?.height || window.innerHeight;
   const offsetTop = viewport?.offsetTop || 0;
   const activeElement = document.activeElement;
+  const loginFocused =
+    loginPanel &&
+    !loginPanel.classList.contains("hidden") &&
+    loginForm?.contains(activeElement);
   const composerFocused = activeElement === messageInput;
   const foodFocused =
     foodPanel &&
@@ -254,7 +258,7 @@ function syncViewportHeight() {
     !diaryPanel.classList.contains("hidden") &&
     activeElement === diaryInput;
   const anyKeyboardFocused =
-    composerFocused || foodFocused || scheduleFocused || messageSearchFocused || diaryFocused;
+    loginFocused || composerFocused || foodFocused || scheduleFocused || messageSearchFocused || diaryFocused;
   if (!anyKeyboardFocused || height > baseViewportHeight) {
     baseViewportHeight = Math.max(baseViewportHeight, height, window.innerHeight);
   }
@@ -268,6 +272,7 @@ function syncViewportHeight() {
   document.documentElement.style.setProperty("--keyboard-bottom", `${keyboardBottom}px`);
   document.documentElement.style.setProperty("--composer-height", `${composerHeight}px`);
   document.body.classList.toggle("keyboard-open", anyKeyboardFocused);
+  document.body.classList.toggle("login-keyboard-open", loginFocused);
   document.body.classList.toggle("composer-keyboard-open", composerFocused);
   document.body.classList.toggle("ios-composer-keyboard-open", composerFocused && isIOSLike);
   document.body.classList.toggle("food-keyboard-open", foodFocused);
@@ -648,6 +653,11 @@ function getAttachmentExtension(type) {
   return "";
 }
 
+function truncateQuoteBody(body, maxLength = 50) {
+  const text = String(body || "").trim();
+  return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+}
+
 function updateMessageElement(item, message) {
   const isMine = message.senderId === state.user.id;
   const bubble = item.querySelector(".bubble");
@@ -664,7 +674,7 @@ function updateMessageElement(item, message) {
     const quote = document.createElement("button");
     quote.className = "quote-card";
     quote.type = "button";
-    quote.textContent = `${message.quoteSenderName}：${message.quoteBody}`;
+    quote.textContent = `${message.quoteSenderName}：${truncateQuoteBody(message.quoteBody)}`;
     quote.addEventListener("click", () => scrollToMessage(message.quoteMessageId));
     bubble.append(quote);
   }
@@ -746,7 +756,7 @@ function updateReplyPreview() {
   }
 
   const text = document.createElement("span");
-  text.textContent = `回复 ${state.quote.senderName}：${state.quote.body}`;
+  text.textContent = `回复 ${state.quote.senderName}：${truncateQuoteBody(state.quote.body)}`;
   const clear = document.createElement("button");
   clear.type = "button";
   clear.textContent = "取消";
@@ -3344,6 +3354,8 @@ renderEmojiPanel();
 setEmojiTab("emoji");
 syncViewportHeight();
 window.addEventListener("resize", syncViewportSoon);
+document.addEventListener("focusin", syncViewportSoon);
+document.addEventListener("focusout", syncViewportSoon);
 document.addEventListener("gesturestart", (event) => event.preventDefault());
 window.addEventListener("focus", () => refreshMessagesAfterResume());
 window.addEventListener("pageshow", () => refreshMessagesAfterResume(true));

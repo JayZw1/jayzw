@@ -1,5 +1,12 @@
-const CACHE_NAME = "private-chat-shell-v4";
-const STATIC_ASSETS = ["/", "/styles.css", "/app.js", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
+const CACHE_NAME = "private-chat-shell-v6";
+const STATIC_ASSETS = [
+  "/",
+  "/styles.css?v=20260605-login-quote",
+  "/app.js?v=20260605-login-quote",
+  "/manifest.webmanifest",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)));
