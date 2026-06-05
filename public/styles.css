@@ -378,10 +378,6 @@ button:hover {
   padding: 20px;
 }
 
-.messages > .message:first-child {
-  margin-top: auto;
-}
-
 .message {
   display: grid;
   gap: 4px;
