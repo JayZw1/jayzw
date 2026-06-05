@@ -594,10 +594,71 @@ async function sendCurrentMessage() {
 
 function requestNotificationPermission() {
   if (!("Notification" in window) || Notification.permission !== "default") {
+    subscribePushNotifications().catch(() => {});
     return;
   }
 
-  Notification.requestPermission().catch(() => {});
+  Notification.requestPermission()
+    .then(() => subscribePushNotifications())
+    .catch(() => {});
+}
+
+function urlBase64ToUint8Array(value) {
+  const padding = "=".repeat((4 - (value.length % 4)) % 4);
+  const base64 = `${value}${padding}`.replace(/-/g, "+").replace(/_/g, "/");
+  const raw = window.atob(base64);
+  const output = new Uint8Array(raw.length);
+
+  for (let i = 0; i < raw.length; i += 1) {
+    output[i] = raw.charCodeAt(i);
+  }
+
+  return output;
+}
+
+async function getServiceWorkerRegistration() {
+  if (!("serviceWorker" in navigator)) {
+    return null;
+  }
+
+  await navigator.serviceWorker.register("/sw.js");
+  return navigator.serviceWorker.ready;
+}
+
+async function subscribePushNotifications() {
+  if (
+    !state.token ||
+    !("Notification" in window) ||
+    Notification.permission !== "granted" ||
+    !("PushManager" in window)
+  ) {
+    return;
+  }
+
+  const registration = await getServiceWorkerRegistration();
+
+  if (!registration) {
+    return;
+  }
+
+  const keyResponse = await api("/api/push/public-key");
+  const keyData = await keyResponse.json();
+
+  if (!keyResponse.ok || !keyData.publicKey) {
+    return;
+  }
+
+  const subscription =
+    (await registration.pushManager.getSubscription()) ||
+    (await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(keyData.publicKey),
+    }));
+
+  await api("/api/push/subscribe", {
+    method: "POST",
+    body: JSON.stringify({ subscription }),
+  });
 }
 
 function notifyIncomingMessage(message) {

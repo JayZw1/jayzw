@@ -56,6 +56,19 @@ function createSqliteStore(databasePath) {
       password_hash TEXT NOT NULL,
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      endpoint TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      subscription_json TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
   `);
   for (const statement of [
     "ALTER TABLE messages ADD COLUMN attachment_name TEXT",
@@ -231,6 +244,28 @@ function createSqliteStore(databasePath) {
     VALUES (?, ?, datetime('now'))
     ON CONFLICT(user_id) DO UPDATE SET password_hash = excluded.password_hash, updated_at = datetime('now')
   `);
+  const selectSetting = db.prepare("SELECT value FROM app_settings WHERE key = ?");
+  const upsertSetting = db.prepare(`
+    INSERT INTO app_settings (key, value)
+    VALUES (?, ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value
+  `);
+  const upsertPushSubscription = db.prepare(`
+    INSERT INTO push_subscriptions (endpoint, user_id, subscription_json, updated_at)
+    VALUES (?, ?, ?, datetime('now'))
+    ON CONFLICT(endpoint) DO UPDATE SET
+      user_id = excluded.user_id,
+      subscription_json = excluded.subscription_json,
+      updated_at = datetime('now')
+  `);
+  const selectPushSubscriptionsForOthers = db.prepare(`
+    SELECT endpoint,
+           user_id AS userId,
+           subscription_json AS subscriptionJson
+    FROM push_subscriptions
+    WHERE user_id <> ?
+  `);
+  const deletePushSubscription = db.prepare("DELETE FROM push_subscriptions WHERE endpoint = ?");
 
   return {
     async init() {},
@@ -274,6 +309,23 @@ function createSqliteStore(databasePath) {
     },
     async setUserPasswordHash(userId, passwordHash) {
       upsertUserPasswordHash.run(userId, passwordHash);
+    },
+    async getSetting(key) {
+      return selectSetting.get(key)?.value || null;
+    },
+    async setSetting(key, value) {
+      upsertSetting.run(key, value);
+    },
+    async savePushSubscription(user, subscription) {
+      upsertPushSubscription.run(subscription.endpoint, user.id, JSON.stringify(subscription));
+    },
+    async listPushSubscriptionsForOthers(userId) {
+      return selectPushSubscriptionsForOthers
+        .all(userId)
+        .map((row) => ({ ...row, subscription: JSON.parse(row.subscriptionJson) }));
+    },
+    async deletePushSubscription(endpoint) {
+      deletePushSubscription.run(endpoint);
     },
     async listFoodItems() {
       return selectFoodItems.all();
@@ -364,6 +416,19 @@ function createPostgresStore(databaseUrl) {
           user_id TEXT PRIMARY KEY,
           password_hash TEXT NOT NULL,
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE TABLE IF NOT EXISTS push_subscriptions (
+          endpoint TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          subscription_json TEXT NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE TABLE IF NOT EXISTS app_settings (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
         );
       `);
       await pool.query(`
@@ -544,6 +609,48 @@ function createPostgresStore(databaseUrl) {
                        updated_at = NOW()`,
         [userId, passwordHash]
       );
+    },
+    async getSetting(key) {
+      const result = await pool.query("SELECT value FROM app_settings WHERE key = $1", [key]);
+      return result.rows[0]?.value || null;
+    },
+    async setSetting(key, value) {
+      await pool.query(
+        `INSERT INTO app_settings (key, value)
+         VALUES ($1, $2)
+         ON CONFLICT (key)
+         DO UPDATE SET value = EXCLUDED.value`,
+        [key, value]
+      );
+    },
+    async savePushSubscription(user, subscription) {
+      await pool.query(
+        `INSERT INTO push_subscriptions (endpoint, user_id, subscription_json, updated_at)
+         VALUES ($1, $2, $3, NOW())
+         ON CONFLICT (endpoint)
+         DO UPDATE SET user_id = EXCLUDED.user_id,
+                       subscription_json = EXCLUDED.subscription_json,
+                       updated_at = NOW()`,
+        [subscription.endpoint, user.id, JSON.stringify(subscription)]
+      );
+    },
+    async listPushSubscriptionsForOthers(userId) {
+      const result = await pool.query(
+        `SELECT endpoint,
+                user_id AS "userId",
+                subscription_json AS "subscriptionJson"
+         FROM push_subscriptions
+         WHERE user_id <> $1`,
+        [userId]
+      );
+      return result.rows.map((row) => ({
+        ...row,
+        subscription:
+          typeof row.subscriptionJson === "string" ? JSON.parse(row.subscriptionJson) : row.subscriptionJson,
+      }));
+    },
+    async deletePushSubscription(endpoint) {
+      await pool.query("DELETE FROM push_subscriptions WHERE endpoint = $1", [endpoint]);
     },
     async listFoodItems() {
       const result = await pool.query(

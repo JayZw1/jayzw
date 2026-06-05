@@ -9,6 +9,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { Lunar, Solar } = require("lunar-javascript");
 const { Server } = require("socket.io");
+const webpush = require("web-push");
 const { createStore } = require("./db");
 
 const PORT = Number(process.env.PORT || 8080);
@@ -44,6 +45,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 const onlineSocketsByUser = new Map();
+let vapidPublicKey = "";
 
 app.use(compression());
 app.use((req, res, next) => {
@@ -103,6 +105,35 @@ function emitPresence() {
   });
 }
 
+async function setupPushKeys() {
+  let keys = await store.getSetting("vapidKeys");
+
+  if (!keys) {
+    keys = JSON.stringify(webpush.generateVAPIDKeys());
+    await store.setSetting("vapidKeys", keys);
+  }
+
+  const parsed = JSON.parse(keys);
+  vapidPublicKey = parsed.publicKey;
+  webpush.setVapidDetails("mailto:private-chat@example.com", parsed.publicKey, parsed.privateKey);
+}
+
+async function sendPushToOthers(senderId, payload) {
+  const subscriptions = await store.listPushSubscriptionsForOthers(senderId);
+
+  await Promise.all(
+    subscriptions.map(async ({ endpoint, subscription }) => {
+      try {
+        await webpush.sendNotification(subscription, JSON.stringify(payload));
+      } catch (error) {
+        if (error.statusCode === 404 || error.statusCode === 410) {
+          await store.deletePushSubscription(endpoint);
+        }
+      }
+    })
+  );
+}
+
 function requireAuth(req, res, next) {
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, "");
   const user = token ? verifyToken(token) : null;
@@ -156,6 +187,25 @@ app.post("/api/password/change", async (req, res) => {
   await store.setUserPasswordHash(user.id, nextHash);
   user.passwordHash = nextHash;
   res.json({ ok: true });
+});
+
+app.get("/api/push/public-key", requireAuth, (req, res) => {
+  res.json({ publicKey: vapidPublicKey });
+});
+
+app.post("/api/push/subscribe", requireAuth, async (req, res) => {
+  const subscription = req.body?.subscription;
+
+  if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
+    return res.status(400).json({ error: "推送订阅无效。" });
+  }
+
+  try {
+    await store.savePushSubscription(req.user, subscription);
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "推送订阅保存失败。" });
+  }
 });
 
 app.get("/api/me", requireAuth, (req, res) => {
@@ -359,6 +409,11 @@ app.post("/api/messages", requireAuth, async (req, res) => {
   try {
     const message = await store.createMessage(req.user, body, attachment, quote);
     io.emit("message:new", message);
+    sendPushToOthers(req.user.id, {
+      title: "碎碎念收件箱",
+      body: "收到一条新消息",
+      tag: "private-chat-message",
+    }).catch(() => {});
     res.json({ message });
   } catch {
     res.status(500).json({ error: "发送失败，请稍后再试。" });
@@ -663,6 +718,11 @@ io.on("connection", (socket) => {
     try {
       const message = await store.createMessage(socket.user, body, attachment, quote);
       io.emit("message:new", message);
+      sendPushToOthers(socket.user.id, {
+        title: "碎碎念收件箱",
+        body: "收到一条新消息",
+        tag: "private-chat-message",
+      }).catch(() => {});
       ack?.({ ok: true, message });
     } catch {
       ack?.({ ok: false, error: "发送失败，请稍后再试。" });
@@ -747,6 +807,11 @@ io.on("connection", (socket) => {
     try {
       const message = await store.createMessage(socket.user, body, null, null);
       io.emit("message:new", message);
+      sendPushToOthers(socket.user.id, {
+        title: "碎碎念收件箱",
+        body: "收到一条新消息",
+        tag: "private-chat-message",
+      }).catch(() => {});
     } catch {}
   });
 
@@ -780,6 +845,11 @@ io.on("connection", (socket) => {
     try {
       const message = await store.createMessage(socket.user, body, null, null);
       io.emit("message:new", message);
+      sendPushToOthers(socket.user.id, {
+        title: "碎碎念收件箱",
+        body: "收到一条新消息",
+        tag: "private-chat-message",
+      }).catch(() => {});
     } catch {}
   });
 
@@ -800,6 +870,7 @@ io.on("connection", (socket) => {
 
 store
   .init()
+  .then(setupPushKeys)
   .then(() => {
     server.listen(PORT, () => {
       console.log(`Private chat is running at http://localhost:${PORT}`);
