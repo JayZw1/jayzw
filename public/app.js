@@ -22,6 +22,7 @@ const passwordChangeForm = document.querySelector("#passwordChangeForm");
 const passwordChangeUsername = document.querySelector("#passwordChangeUsername");
 const passwordChangeOld = document.querySelector("#passwordChangeOld");
 const passwordChangeNew = document.querySelector("#passwordChangeNew");
+const passwordChangeConfirm = document.querySelector("#passwordChangeConfirm");
 const passwordChangeStatus = document.querySelector("#passwordChangeStatus");
 const closePasswordChangeButton = document.querySelector("#closePasswordChangeButton");
 const messagesEl = document.querySelector("#messages");
@@ -278,6 +279,7 @@ function openPasswordChangePanel() {
   passwordChangeUsername.value = document.querySelector("#username")?.value || "";
   passwordChangeOld.value = "";
   passwordChangeNew.value = "";
+  passwordChangeConfirm.value = "";
   passwordChangePanel?.classList.remove("hidden");
   passwordChangeUsername?.focus();
 }
@@ -291,6 +293,10 @@ async function changePassword(event) {
   passwordChangeStatus.textContent = "正在保存...";
 
   try {
+    if (passwordChangeNew.value !== passwordChangeConfirm.value) {
+      throw new Error("两次输入的新密码不一致。");
+    }
+
     const response = await api("/api/password/change", {
       method: "POST",
       body: JSON.stringify({
@@ -308,6 +314,7 @@ async function changePassword(event) {
     passwordChangeStatus.textContent = "密码已更新，可以用新密码登录。";
     passwordChangeOld.value = "";
     passwordChangeNew.value = "";
+    passwordChangeConfirm.value = "";
   } catch (error) {
     passwordChangeStatus.textContent = error.message;
   }
