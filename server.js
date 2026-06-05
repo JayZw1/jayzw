@@ -19,6 +19,9 @@ const TOKEN_MAX_AGE = "30d";
 const MAX_ATTACHMENT_BYTES = Number.POSITIVE_INFINITY;
 const CLEAR_HISTORY_PASSWORD = process.env.CLEAR_HISTORY_PASSWORD || "zhangwei020216";
 const DIARY_MIN_DATE = "2025-01-01";
+const ANDROID_PACKAGE_NAME = "com.jayzw.privatechat";
+const ANDROID_CERT_SHA256 =
+  "BD:7B:1F:EB:04:7D:F3:CA:43:76:45:31:D8:E2:A3:6E:0F:02:97:09:87:ED:C3:08:8B:6A:6B:72:8F:61:5A:7E";
 const FESTIVAL_DETAILS = {
   元旦: {
     intro: "新一年的开始，适合一起定下新的小目标。",
@@ -117,11 +120,16 @@ app.use((req, res, next) => {
     return next();
   }
 
-  return res
-    .type("application/json")
-    .sendFile(path.join(__dirname, "public", ".well-known", "assetlinks.json"), {
-      dotfiles: "allow",
-    });
+  return res.json([
+    {
+      relation: ["delegate_permission/common.handle_all_urls"],
+      target: {
+        namespace: "android_app",
+        package_name: ANDROID_PACKAGE_NAME,
+        sha256_cert_fingerprints: [ANDROID_CERT_SHA256],
+      },
+    },
+  ]);
 });
 app.use(compression());
 app.use((req, res, next) => {
