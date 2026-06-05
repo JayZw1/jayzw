@@ -129,14 +129,21 @@ function syncViewportHeight() {
   const height = viewport?.height || window.innerHeight;
   const offsetTop = viewport?.offsetTop || 0;
   const keyboardBottom = Math.max(0, window.innerHeight - height - offsetTop);
-  const composerFocused = document.activeElement === messageInput;
+  const activeElement = document.activeElement;
+  const composerFocused = activeElement === messageInput;
+  const foodFocused =
+    foodPanel &&
+    !foodPanel.classList.contains("hidden") &&
+    (activeElement === foodDateInput || activeElement === foodNameInput);
   const composerHeight = Math.ceil(messageForm?.getBoundingClientRect().height || 68);
 
   document.documentElement.style.setProperty("--app-height", `${height}px`);
   document.documentElement.style.setProperty("--visual-offset-top", `${offsetTop}px`);
   document.documentElement.style.setProperty("--keyboard-bottom", `${keyboardBottom}px`);
   document.documentElement.style.setProperty("--composer-height", `${composerHeight}px`);
-  document.body.classList.toggle("keyboard-open", composerFocused);
+  document.body.classList.toggle("keyboard-open", composerFocused || foodFocused);
+  document.body.classList.toggle("composer-keyboard-open", composerFocused);
+  document.body.classList.toggle("food-keyboard-open", foodFocused);
 }
 
 function syncViewportSoon() {
@@ -1545,6 +1552,10 @@ messageInput.addEventListener("input", () => {
 
 messageInput.addEventListener("focus", syncViewportSoon);
 messageInput.addEventListener("blur", syncViewportSoon);
+foodDateInput?.addEventListener("focus", syncViewportSoon);
+foodDateInput?.addEventListener("blur", syncViewportSoon);
+foodNameInput?.addEventListener("focus", syncViewportSoon);
+foodNameInput?.addEventListener("blur", syncViewportSoon);
 
 logoutButton.addEventListener("click", () => {
   localStorage.removeItem("chat_token");

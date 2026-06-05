@@ -1004,7 +1004,7 @@ button:hover {
     padding: 10px max(8px, env(safe-area-inset-left)) calc(10px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-right));
   }
 
-  body.keyboard-open .composer {
+  body.composer-keyboard-open .composer {
     position: fixed;
     right: 0;
     bottom: max(var(--keyboard-bottom, 0px), env(safe-area-inset-bottom));
@@ -1014,8 +1014,19 @@ button:hover {
     box-shadow: 0 -10px 24px rgba(15, 23, 42, 0.08);
   }
 
-  body.keyboard-open .messages {
+  body.composer-keyboard-open .messages {
     padding-bottom: calc(var(--composer-height, 68px) + 16px);
+  }
+
+  body.food-keyboard-open .food-panel {
+    align-items: end;
+    padding-bottom: calc(max(var(--keyboard-bottom, 0px), env(safe-area-inset-bottom)) + 10px);
+  }
+
+  body.food-keyboard-open .food-card {
+    width: calc(100% - 20px);
+    max-height: calc(var(--app-height, 100dvh) - max(var(--keyboard-bottom, 0px), env(safe-area-inset-bottom)) - 20px);
+    overflow-y: auto;
   }
 
   .composer button,
