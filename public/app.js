@@ -501,7 +501,10 @@ function openAttachmentViewer(message, url) {
     panel.className = "attachment-viewer-panel hidden";
     panel.innerHTML = `
       <div class="attachment-viewer-card">
-        <button class="attachment-viewer-close" type="button" aria-label="关闭">×</button>
+        <div class="attachment-viewer-actions">
+          <button class="attachment-viewer-save" type="button">保存</button>
+          <button class="attachment-viewer-close" type="button" aria-label="关闭">×</button>
+        </div>
         <div class="attachment-viewer-body"></div>
       </div>
     `;
@@ -515,7 +518,11 @@ function openAttachmentViewer(message, url) {
   }
 
   const body = panel.querySelector(".attachment-viewer-body");
+  const saveButton = panel.querySelector(".attachment-viewer-save");
   body.innerHTML = "";
+  saveButton.textContent = "保存";
+  saveButton.disabled = false;
+  saveButton.onclick = () => saveAttachmentToAlbum(message, url, saveButton);
 
   if (isImage) {
     const image = document.createElement("img");
@@ -532,6 +539,55 @@ function openAttachmentViewer(message, url) {
   }
 
   panel.classList.remove("hidden");
+}
+
+async function saveAttachmentToAlbum(message, url, button) {
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "准备中";
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error("文件加载失败");
+    }
+
+    const blob = await response.blob();
+    const name = message.attachmentName || `attachment-${message.id}${getAttachmentExtension(blob.type)}`;
+    const file = new File([blob], name, { type: blob.type || message.attachmentType || "application/octet-stream" });
+
+    if (navigator.canShare?.({ files: [file] })) {
+      button.textContent = "选择保存";
+      await navigator.share({ files: [file], title: name });
+    } else {
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = name;
+      link.target = "_blank";
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 3000);
+    }
+
+    button.textContent = originalText;
+  } catch (error) {
+    button.textContent = "重新保存";
+    statusText.textContent = error.message || "保存失败，请稍后再试";
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function getAttachmentExtension(type) {
+  if (type === "image/png") return ".png";
+  if (type === "image/gif") return ".gif";
+  if (type === "image/webp") return ".webp";
+  if (type?.startsWith("image/")) return ".jpg";
+  if (type === "video/quicktime") return ".mov";
+  if (type?.startsWith("video/")) return ".mp4";
+  return "";
 }
 
 function updateMessageElement(item, message) {
