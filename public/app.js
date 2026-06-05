@@ -72,6 +72,7 @@ let relayVideoTimer = null;
 let relayAudioRecorder = null;
 let remoteAudioQueue = [];
 let remoteAudioPlaying = false;
+let relayFallbackTimer = null;
 const EMOJIS = [
   "😀",
   "😄",
@@ -110,6 +111,11 @@ const EMOJIS = [
   "☕",
   "🎂",
 ];
+
+function syncViewportHeight() {
+  const height = window.visualViewport?.height || window.innerHeight;
+  document.documentElement.style.setProperty("--app-height", `${height}px`);
+}
 
 function api(path, options = {}) {
   return fetch(path, {
@@ -561,6 +567,8 @@ function createPeerConnection() {
   pc.ontrack = (event) => {
     const [stream] = event.streams;
     remoteVideo.srcObject = stream;
+    remoteRelayImage.classList.add("hidden");
+    remoteVideo.classList.remove("hidden");
     remoteVideo.muted = false;
     remoteVideo.volume = 1;
     callConnected = true;
@@ -578,6 +586,9 @@ function createPeerConnection() {
       if (!callStartedAt) {
         callStartedAt = Date.now();
       }
+      clearTimeout(relayFallbackTimer);
+      relayFallbackTimer = null;
+      stopRelayMedia();
       clearTimeout(disconnectTimer);
       disconnectTimer = null;
       callStatus.textContent = currentCallMode === "video" ? "视频通话中" : "语音通话中";
@@ -595,12 +606,30 @@ function createPeerConnection() {
       return;
     }
 
-    if (["failed", "closed"].includes(pc.connectionState)) {
-      endCall(false);
+    if (pc.connectionState === "failed") {
+      startRelayFallback("实时连接失败，正在切换保底通话...");
     }
   };
 
   return pc;
+}
+
+function getMediaConstraints(mode) {
+  return {
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+    },
+    video:
+      mode === "video"
+        ? {
+            width: { ideal: 640, max: 960 },
+            height: { ideal: 360, max: 540 },
+            frameRate: { ideal: 24, max: 30 },
+          }
+        : false,
+  };
 }
 
 async function startCall(mode) {
@@ -625,17 +654,25 @@ async function startCall(mode) {
   callStatus.textContent = mode === "video" ? "正在发起视频通话..." : "正在发起语音通话...";
 
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: mode === "video",
-    });
+    localStream = await navigator.mediaDevices.getUserMedia(getMediaConstraints(mode));
   } catch (error) {
     callStatus.textContent = getMediaErrorText(error, mode);
     setTimeout(() => endCall(false), 1400);
     return;
   }
   localVideo.srcObject = localStream;
-  state.socket.emit("call:offer", { mode, relay: true });
+  peerConnection = createPeerConnection();
+  addLocalOrReceiveOnlyTracks(mode);
+
+  try {
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+    state.socket.emit("call:offer", { mode, offer });
+  } catch {
+    state.socket.emit("call:offer", { mode, relay: true });
+    scheduleRelayFallback(0);
+  }
+
   outgoingCallTimer = setTimeout(() => {
     if (!callConnected && currentCallMode) {
       endCall(true, "timeout");
@@ -648,7 +685,7 @@ async function acceptCall() {
     return;
   }
 
-  const { mode } = pendingOffer;
+  const { mode, offer } = pendingOffer;
   currentCallMode = mode;
   callStartedAt = null;
   callConnected = false;
@@ -660,22 +697,37 @@ async function acceptCall() {
   callStatus.textContent = mode === "video" ? "视频通话中" : "语音通话中";
 
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: mode === "video",
-    });
+    localStream = await navigator.mediaDevices.getUserMedia(getMediaConstraints(mode));
   } catch {
     localStream = null;
     callStatus.textContent = "本机无可用麦克风/摄像头，正在只接收对方声音和画面";
   }
 
   localVideo.srcObject = localStream;
-  state.socket.emit("call:answer", { relay: true });
-  startRelayMedia();
+
+  if (!offer) {
+    state.socket.emit("call:answer", { relay: true });
+    startRelayMedia();
+    return;
+  }
+
+  try {
+    peerConnection = createPeerConnection();
+    addLocalOrReceiveOnlyTracks(mode);
+    await peerConnection.setRemoteDescription(offer);
+    await flushPendingIceCandidates();
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+    state.socket.emit("call:answer", { answer });
+    scheduleRelayFallback(8000);
+  } catch {
+    state.socket.emit("call:answer", { relay: true });
+    startRelayMedia();
+  }
 }
 
 function receiveCall({ from, mode, offer }) {
-  if (peerConnection) {
+  if (peerConnection || (currentCallMode && !callEnded)) {
     return;
   }
 
@@ -700,10 +752,20 @@ async function applyAnswer({ answer }) {
 
   clearTimeout(outgoingCallTimer);
   outgoingCallTimer = null;
-  callConnected = true;
-  callStartedAt = Date.now();
-  callStatus.textContent = currentCallMode === "video" ? "视频通话中" : "语音通话中";
-  startRelayMedia();
+
+  if (!answer || !peerConnection) {
+    startRelayMedia();
+    return;
+  }
+
+  try {
+    await peerConnection.setRemoteDescription(answer);
+    await flushPendingIceCandidates();
+    callStatus.textContent = "正在建立实时通话...";
+    scheduleRelayFallback(8000);
+  } catch {
+    startRelayMedia();
+  }
 }
 
 async function applyIce({ candidate }) {
@@ -773,6 +835,24 @@ function startRelayMedia() {
   startRelayVideo();
 }
 
+function scheduleRelayFallback(delay) {
+  clearTimeout(relayFallbackTimer);
+  relayFallbackTimer = setTimeout(() => {
+    if (!callConnected && currentCallMode && !callEnded) {
+      startRelayFallback("实时通话连不上，已切换保底通话");
+    }
+  }, delay);
+}
+
+function startRelayFallback(message) {
+  if (callEnded || !currentCallMode) {
+    return;
+  }
+
+  callStatus.textContent = message;
+  startRelayMedia();
+}
+
 function startRelayVideo() {
   if (currentCallMode !== "video" || !localStream?.getVideoTracks().length) {
     return;
@@ -794,7 +874,7 @@ function startRelayVideo() {
       kind: "video",
       data: canvas.toDataURL("image/jpeg", 0.45),
     });
-  }, 350);
+  }, 180);
 }
 
 function startRelayAudio() {
@@ -826,11 +906,15 @@ function startRelayAudio() {
     });
     reader.readAsDataURL(event.data);
   });
-  relayAudioRecorder.start(1000);
+  relayAudioRecorder.start(350);
 }
 
 function receiveRelayMedia({ kind, data }) {
   if (callEnded || !data) {
+    return;
+  }
+
+  if (peerConnection?.connectionState === "connected") {
     return;
   }
 
@@ -850,6 +934,18 @@ function receiveRelayMedia({ kind, data }) {
     remoteAudioQueue.push(data);
     playNextRemoteAudio();
   }
+}
+
+function stopRelayMedia() {
+  clearInterval(relayVideoTimer);
+  relayVideoTimer = null;
+  if (relayAudioRecorder?.state !== "inactive") {
+    relayAudioRecorder?.stop();
+  }
+  relayAudioRecorder = null;
+  remoteAudioQueue = [];
+  remoteAudioPlaying = false;
+  remoteRelayAudio.src = "";
 }
 
 function playNextRemoteAudio() {
@@ -900,18 +996,13 @@ function endCall(emit = true, reason = "ended") {
 
 function cleanupCall() {
   callEnded = true;
-  clearInterval(relayVideoTimer);
-  relayVideoTimer = null;
-  if (relayAudioRecorder?.state !== "inactive") {
-    relayAudioRecorder?.stop();
-  }
-  relayAudioRecorder = null;
-  remoteAudioQueue = [];
-  remoteAudioPlaying = false;
+  stopRelayMedia();
   clearTimeout(outgoingCallTimer);
   outgoingCallTimer = null;
   clearTimeout(disconnectTimer);
   disconnectTimer = null;
+  clearTimeout(relayFallbackTimer);
+  relayFallbackTimer = null;
   peerConnection?.close();
   peerConnection = null;
   localStream?.getTracks().forEach((track) => track.stop());
@@ -1304,6 +1395,10 @@ function clearAttachment() {
 
 renderEmojiPanel();
 setEmojiTab("emoji");
+syncViewportHeight();
+window.addEventListener("resize", syncViewportHeight);
+window.visualViewport?.addEventListener("resize", syncViewportHeight);
+window.visualViewport?.addEventListener("scroll", syncViewportHeight);
 boot();
 
 if ("serviceWorker" in navigator) {
