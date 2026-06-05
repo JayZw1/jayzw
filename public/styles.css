@@ -1537,8 +1537,8 @@ button:hover {
       "title upcoming feature tools actions"
       "title upcoming feature tools actions"
       "status status status status status";
-    grid-template-columns: minmax(66px, 1fr) 48px 48px 38px 40px;
-    column-gap: 4px;
+    grid-template-columns: minmax(66px, 1fr) 46px 46px 36px 40px;
+    column-gap: 3px;
     row-gap: 5px;
     width: 100%;
   }
@@ -1559,7 +1559,7 @@ button:hover {
   }
 
   .upcoming-mini-button {
-    width: 48px;
+    width: 46px;
     height: 25px;
     overflow: hidden;
     font-size: 8px;
@@ -1582,9 +1582,9 @@ button:hover {
   .header-status-row {
     display: grid;
     grid-area: status;
-    grid-template-columns: minmax(66px, 1fr) 48px 48px 38px 40px;
+    grid-template-columns: minmax(66px, 1fr) 46px 46px 36px 40px;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
   }
 
   .header-status-row p {
@@ -1643,6 +1643,38 @@ button:hover {
     width: 40px;
     height: 25px;
     font-size: 11px;
+  }
+
+  .title-row .other-feature-button,
+  .title-row .important-days-button {
+    width: 46px;
+    height: 25px;
+    font-size: 11px;
+  }
+
+  .title-row .food-button,
+  .title-row .schedule-button {
+    width: 36px;
+    height: 25px;
+    font-size: 11px;
+  }
+
+  .title-row .diary-button {
+    width: 52px;
+    height: 25px;
+    font-size: 10px;
+  }
+
+  .title-row .header-action-stack .icon-control {
+    width: 40px;
+    height: 25px;
+    font-size: 11px;
+  }
+
+  .header-status-row .message-search-button {
+    width: 46px;
+    height: 22px;
+    font-size: 10px;
   }
 
   .messages {
