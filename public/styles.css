@@ -1928,9 +1928,18 @@ button.attachment {
     transform: translateY(-5px);
   }
 
+  body.sparse-messages.composer-keyboard-open .chat-panel,
+  body.sparse-messages.ios-composer-keyboard-open .chat-panel {
+    transform: none;
+  }
+
   body.composer-keyboard-open .messages {
     padding-bottom: 16px;
     scroll-padding-bottom: 16px;
+  }
+
+  body.empty-messages.composer-keyboard-open .messages {
+    min-height: 120px;
   }
 
   body.food-keyboard-open .food-panel {

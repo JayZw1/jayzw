@@ -276,6 +276,7 @@ function syncViewportHeight() {
   document.body.classList.toggle("schedule-content-keyboard-open", scheduleContentFocused);
   document.body.classList.toggle("message-search-keyboard-open", messageSearchFocused);
   document.body.classList.toggle("diary-keyboard-open", diaryFocused);
+  syncSparseMessagesClass();
 }
 
 function syncViewportSoon() {
@@ -308,6 +309,7 @@ function syncViewportSoon() {
 function scrollMessagesToBottom() {
   if (!shouldStickToLatestMessage()) {
     messagesEl.scrollTop = 0;
+    syncSparseMessagesClass();
     return;
   }
 
@@ -350,6 +352,12 @@ function jumpToLatestMessage() {
 
 function shouldStickToLatestMessage() {
   return messagesEl.scrollHeight > messagesEl.clientHeight + 4;
+}
+
+function syncSparseMessagesClass() {
+  const count = messagesEl.querySelectorAll(".message[data-message-id]").length;
+  document.body.classList.toggle("sparse-messages", count < 3);
+  document.body.classList.toggle("empty-messages", count === 0);
 }
 
 function api(path, options = {}) {
@@ -453,6 +461,7 @@ function renderMessage(message, options = {}) {
   bindMessageMenu(item, message);
   updateMessageElement(item, message);
   insertMessageElement(item, messageId);
+  syncSparseMessagesClass();
   if (options.scroll !== false) {
     scrollMessagesToBottom();
   }
@@ -830,6 +839,7 @@ async function sendCurrentMessage() {
   }
 
   messageInput.value = "";
+  resizeMessageInput();
   const attachment = state.attachment;
   const quote = state.quote;
   clearAttachment();
@@ -839,6 +849,7 @@ async function sendCurrentMessage() {
   const payload = { body, attachment, quote };
   const restoreDraft = (error) => {
     messageInput.value = body;
+    resizeMessageInput();
     state.attachment = attachment;
     state.quote = quote;
     updateAttachmentPreview();
@@ -851,6 +862,12 @@ async function sendCurrentMessage() {
   } catch (error) {
     restoreDraft(error.message);
   }
+}
+
+function resizeMessageInput() {
+  messageInput.style.height = "auto";
+  messageInput.style.height = messageInput.value ? `${messageInput.scrollHeight}px` : "";
+  syncViewportSoon();
 }
 
 function requestNotificationPermission() {
@@ -2810,6 +2827,7 @@ function replaceMessage(message) {
 
 function removeMessage(messageId) {
   messagesEl.querySelector(`[data-message-id="${messageId}"]`)?.remove();
+  syncSparseMessagesClass();
 }
 
 function recallMessage(id) {
@@ -2843,6 +2861,7 @@ async function loadMessages(options = {}) {
   }
 
   data.messages.forEach((message) => renderMessage(message, { scroll: reset ? scroll : false }));
+  syncSparseMessagesClass();
 
   if (scroll) {
     settleMessagesAtBottom();
@@ -2905,6 +2924,7 @@ function connectSocket() {
   state.socket.on("messages:cleared", () => {
     messagesEl.innerHTML = "";
     state.renderedMessages.clear();
+    syncSparseMessagesClass();
     statusText.textContent = "聊天记录已清空";
   });
   state.socket.on("food:created", upsertFoodItem);
@@ -3004,10 +3024,8 @@ sendButton?.addEventListener("click", async (event) => {
 });
 
 messageInput.addEventListener("input", () => {
-  messageInput.style.height = "auto";
-  messageInput.style.height = `${messageInput.scrollHeight}px`;
+  resizeMessageInput();
   handleLocalTyping();
-  syncViewportSoon();
 });
 
 messageInput.addEventListener("focus", syncViewportSoon);
@@ -3254,6 +3272,7 @@ clearHistoryButton?.addEventListener("click", async () => {
 
     messagesEl.innerHTML = "";
     state.renderedMessages.clear();
+    syncSparseMessagesClass();
     statusText.textContent = "聊天记录已清空";
   } catch (error) {
     statusText.textContent = error.message;
