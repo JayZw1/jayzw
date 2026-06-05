@@ -1,8 +1,8 @@
-const CACHE_NAME = "private-chat-shell-v6";
+const CACHE_NAME = "private-chat-shell-v7";
 const STATIC_ASSETS = [
   "/",
-  "/styles.css?v=20260605-login-quote",
-  "/app.js?v=20260605-login-quote",
+  "/styles.css?v=20260605-express-notify",
+  "/app.js?v=20260605-express-notify",
   "/manifest.webmanifest",
   "/icons/icon-192.png",
   "/icons/icon-512.png",

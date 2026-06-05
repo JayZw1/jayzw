@@ -12,6 +12,7 @@ const state = {
   foodItems: [],
   scheduleItems: [],
   diaryEntries: [],
+  expressStatus: { date: todayInputValue(), hasExpress: false },
   diarySelectedDate: todayInputValue(),
   diaryVisibleMonth: todayInputValue().slice(0, 7),
   bottomSettleUntil: 0,
@@ -56,6 +57,8 @@ const statusText = document.querySelector("#statusText");
 const logoutButton = document.querySelector("#logoutButton");
 const clearHistoryButton = document.querySelector("#clearHistoryButton");
 const diaryButton = document.querySelector("#diaryButton");
+const expressStatusButton = document.querySelector("#expressStatusButton");
+const expressStatusText = document.querySelector("#expressStatusText");
 const diaryPanel = document.querySelector("#diaryPanel");
 const diaryForm = document.querySelector("#diaryForm");
 const diaryInput = document.querySelector("#diaryInput");
@@ -1073,6 +1076,46 @@ function todayInputValue() {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function loadExpressStatus() {
+  const today = todayInputValue();
+
+  try {
+    const stored = JSON.parse(localStorage.getItem("express_status") || "null");
+    state.expressStatus =
+      stored && stored.date === today
+        ? { date: today, hasExpress: Boolean(stored.hasExpress) }
+        : { date: today, hasExpress: false };
+  } catch {
+    state.expressStatus = { date: today, hasExpress: false };
+  }
+
+  saveExpressStatus();
+  renderExpressStatus();
+}
+
+function saveExpressStatus() {
+  localStorage.setItem("express_status", JSON.stringify(state.expressStatus));
+}
+
+function renderExpressStatus() {
+  const hasExpress = Boolean(state.expressStatus?.hasExpress);
+  expressStatusButton?.setAttribute("aria-pressed", String(hasExpress));
+  if (expressStatusText) {
+    expressStatusText.textContent = hasExpress ? "有" : "没有";
+  }
+}
+
+function toggleExpressStatus() {
+  const today = todayInputValue();
+  if (state.expressStatus?.date !== today) {
+    state.expressStatus = { date: today, hasExpress: false };
+  }
+
+  state.expressStatus.hasExpress = !state.expressStatus.hasExpress;
+  saveExpressStatus();
+  renderExpressStatus();
 }
 
 function parseYmd(value) {
@@ -3243,6 +3286,7 @@ closeScheduleButton?.addEventListener("click", closeSchedulePanel);
 todayBadge?.addEventListener("click", openWeatherPanel);
 closeWeatherButton?.addEventListener("click", closeWeatherPanel);
 diaryButton?.addEventListener("click", openDiaryPanel);
+expressStatusButton?.addEventListener("click", toggleExpressStatus);
 diaryForm?.addEventListener("submit", saveDiaryEntry);
 closeDiaryButton?.addEventListener("click", closeDiaryPanel);
 prevDiaryMonthButton?.addEventListener("click", () => {
@@ -3351,6 +3395,7 @@ function clearAttachment() {
 }
 
 renderEmojiPanel();
+loadExpressStatus();
 setEmojiTab("emoji");
 syncViewportHeight();
 window.addEventListener("resize", syncViewportSoon);

@@ -218,6 +218,34 @@ button:hover {
   font-size: 11px;
 }
 
+.express-status-slot {
+  display: grid;
+  gap: 1px;
+  justify-items: center;
+  min-width: 38px;
+}
+
+.express-status-button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 0;
+}
+
+.express-status-button:hover,
+.express-status-button[aria-pressed="true"] {
+  color: var(--accent);
+}
+
+.express-status-slot small {
+  color: var(--accent);
+  font-size: 9px;
+  line-height: 1;
+}
+
 .important-days-button {
   width: 74px;
   height: 32px;
@@ -1749,10 +1777,10 @@ button.attachment {
   .title-row {
     display: grid;
     grid-template-areas:
-      "title upcoming feature tools actions"
-      "title upcoming feature tools actions"
-      "status status status status status";
-    grid-template-columns: minmax(66px, 1fr) 46px 46px 36px 40px;
+      "title express upcoming feature tools actions"
+      "title express upcoming feature tools actions"
+      "status status status status status status";
+    grid-template-columns: minmax(58px, 1fr) 32px 44px 44px 34px 38px;
     column-gap: 3px;
     row-gap: 5px;
     width: 100%;
@@ -1764,6 +1792,20 @@ button.attachment {
     gap: 4px;
   }
 
+  .express-status-slot {
+    grid-area: express;
+    align-self: start;
+    min-width: 0;
+  }
+
+  .express-status-button {
+    font-size: 10px;
+  }
+
+  .express-status-slot small {
+    font-size: 8px;
+  }
+
   .header-feature-stack {
     grid-area: feature;
   }
@@ -1772,11 +1814,10 @@ button.attachment {
     grid-area: upcoming;
     align-self: start;
     justify-items: end;
-    transform: translateX(-16px);
   }
 
   .upcoming-mini-button {
-    width: 60px;
+    width: 54px;
     height: 14px;
     overflow: visible;
     font-size: 8px;
@@ -1784,7 +1825,7 @@ button.attachment {
   }
 
   .upcoming-marquee {
-    width: 60px;
+    width: 54px;
     font-size: 8px;
   }
 
