@@ -1930,7 +1930,7 @@ button.attachment {
 
   body.sparse-messages.composer-keyboard-open .chat-panel,
   body.sparse-messages.ios-composer-keyboard-open .chat-panel {
-    transform: none;
+    transform: translateY(var(--sparse-composer-nudge, 0px));
   }
 
   body.composer-keyboard-open .messages {
