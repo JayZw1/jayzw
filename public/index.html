@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-    <link rel="stylesheet" href="/styles.css?v=20260605-express-panel-bubble" />
+    <link rel="stylesheet" href="/styles.css?v=20260605-express-polish" />
   </head>
   <body>
     <main class="shell">
@@ -210,6 +210,7 @@
             <h2>快递</h2>
             <button class="ghost icon-control" id="closeExpressStatusButton" type="button" title="关闭">×</button>
           </div>
+          <div class="express-current" id="expressStatusCurrent">今天：没有</div>
           <div class="express-options" id="expressStatusOptions" role="group" aria-label="选择今天是否有快递">
             <button type="button" data-express-status="yes">有</button>
             <button type="button" data-express-status="no">没有</button>
@@ -326,6 +327,6 @@
     </main>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="/app.js?v=20260605-express-panel-bubble"></script>
+    <script src="/app.js?v=20260605-express-polish"></script>
   </body>
 </html>

@@ -60,6 +60,7 @@ const diaryButton = document.querySelector("#diaryButton");
 const expressStatusButton = document.querySelector("#expressStatusButton");
 const expressStatusText = document.querySelector("#expressStatusText");
 const expressStatusPanel = document.querySelector("#expressStatusPanel");
+const expressStatusCurrent = document.querySelector("#expressStatusCurrent");
 const expressStatusOptions = document.querySelector("#expressStatusOptions");
 const closeExpressStatusButton = document.querySelector("#closeExpressStatusButton");
 const diaryPanel = document.querySelector("#diaryPanel");
@@ -1118,6 +1119,9 @@ function renderExpressStatus() {
   expressStatusButton?.setAttribute("aria-pressed", String(hasExpress));
   if (expressStatusText) {
     expressStatusText.textContent = hasExpress ? "有" : "没有";
+  }
+  if (expressStatusCurrent) {
+    expressStatusCurrent.textContent = hasExpress ? "今天：有" : "今天：没有";
   }
   expressStatusOptions?.querySelectorAll("[data-express-status]").forEach((button) => {
     button.classList.toggle("active", button.dataset.expressStatus === (hasExpress ? "yes" : "no"));
