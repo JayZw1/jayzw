@@ -39,7 +39,10 @@
         <header class="chat-header">
           <div>
             <div class="title-row">
-              <h1>碎碎念收件箱</h1>
+              <div class="title-stack">
+                <button class="ghost diary-button" id="diaryButton" type="button">我们的日记</button>
+                <h1>碎碎念收件箱</h1>
+              </div>
               <div class="header-tool-stack">
                 <button class="ghost other-feature-button" id="otherFeatureButton" type="button">其他功能</button>
                 <button class="ghost important-days-button" id="importantDaysButton" type="button">重要日子</button>
@@ -101,6 +104,14 @@
         </form>
       </section>
 
+      <div class="typing-cat hidden" id="typingCat" aria-hidden="true">
+        <span class="typing-cat-tail"></span>
+        <span class="typing-cat-body"></span>
+        <span class="typing-cat-head"></span>
+        <span class="typing-cat-leg typing-cat-leg-a"></span>
+        <span class="typing-cat-leg typing-cat-leg-b"></span>
+      </div>
+
       <div class="context-menu hidden" id="contextMenu" role="menu">
         <button type="button" data-action="quote">引用</button>
         <button type="button" data-action="recall">撤回</button>
@@ -158,6 +169,20 @@
             <button class="ghost icon-control" id="closeOtherFeatureButton" type="button" title="关闭">×</button>
           </div>
           <div class="other-feature-list" id="otherFeatureList"></div>
+        </div>
+      </div>
+
+      <div class="diary-panel hidden" id="diaryPanel">
+        <div class="diary-card">
+          <div class="modal-title">
+            <h2>我们的日记</h2>
+            <button class="ghost icon-control" id="closeDiaryButton" type="button" title="关闭">×</button>
+          </div>
+          <form class="diary-form" id="diaryForm">
+            <input id="diaryInput" maxlength="120" placeholder="写下今天和对方有关的最开心的事" required />
+            <button type="submit">保存</button>
+          </form>
+          <div class="diary-list" id="diaryList">正在加载...</div>
         </div>
       </div>
 

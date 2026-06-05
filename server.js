@@ -390,6 +390,33 @@ app.delete("/api/schedule-items/:id", requireAuth, async (req, res) => {
   }
 });
 
+app.get("/api/diary-entries", requireAuth, async (req, res) => {
+  const limit = Math.min(Math.max(Number(req.query.limit) || 80, 1), 200);
+
+  try {
+    res.json({ entries: await store.listDiaryEntries(limit) });
+  } catch {
+    res.status(500).json({ error: "日记加载失败。" });
+  }
+});
+
+app.post("/api/diary-entries", requireAuth, async (req, res) => {
+  const content = String(req.body?.content || "").trim().slice(0, 120);
+  const today = formatYmd(todayInChina());
+
+  if (!content) {
+    return res.status(400).json({ error: "请写下一句话。" });
+  }
+
+  try {
+    const entry = await store.saveDiaryEntry(req.user, today, content);
+    io.emit("diary:saved", entry);
+    res.json({ entry });
+  } catch {
+    res.status(500).json({ error: "保存失败，请稍后再试。" });
+  }
+});
+
 
 app.post("/api/messages", requireAuth, async (req, res) => {
   const body = String(req.body?.body || "").trim();
@@ -755,6 +782,14 @@ io.on("connection", (socket) => {
     } catch {
       ack?.({ ok: false, error: "删除失败，请稍后再试。" });
     }
+  });
+
+  socket.on("typing:start", () => {
+    socket.broadcast.emit("typing:start", { user: publicUser(socket.user) });
+  });
+
+  socket.on("typing:stop", () => {
+    socket.broadcast.emit("typing:stop", { user: publicUser(socket.user) });
   });
 
   socket.on("call:offer", (payload) => {

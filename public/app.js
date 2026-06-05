@@ -10,6 +10,7 @@ const state = {
   weather: null,
   foodItems: [],
   scheduleItems: [],
+  diaryEntries: [],
 };
 
 const loginPanel = document.querySelector("#loginPanel");
@@ -47,6 +48,13 @@ const contextMenu = document.querySelector("#contextMenu");
 const statusText = document.querySelector("#statusText");
 const logoutButton = document.querySelector("#logoutButton");
 const clearHistoryButton = document.querySelector("#clearHistoryButton");
+const diaryButton = document.querySelector("#diaryButton");
+const diaryPanel = document.querySelector("#diaryPanel");
+const diaryForm = document.querySelector("#diaryForm");
+const diaryInput = document.querySelector("#diaryInput");
+const diaryList = document.querySelector("#diaryList");
+const closeDiaryButton = document.querySelector("#closeDiaryButton");
+const typingCat = document.querySelector("#typingCat");
 const messageSearchButton = document.querySelector("#messageSearchButton");
 const messageSearchPanel = document.querySelector("#messageSearchPanel");
 const messageSearchForm = document.querySelector("#messageSearchForm");
@@ -114,6 +122,11 @@ let remoteAudioQueue = [];
 let remoteAudioPlaying = false;
 let relayFallbackTimer = null;
 let baseViewportHeight = window.innerHeight;
+let typingEmitTimer = null;
+let typingStopTimer = null;
+let typingIndicatorTimer = null;
+let savedStatusText = "";
+let lastResumeRefreshAt = 0;
 const EMOJIS = [
   "😀",
   "😄",
@@ -208,7 +221,12 @@ function syncViewportHeight() {
     messageSearchPanel &&
     !messageSearchPanel.classList.contains("hidden") &&
     activeElement === messageSearchInput;
-  const anyKeyboardFocused = composerFocused || foodFocused || scheduleFocused || messageSearchFocused;
+  const diaryFocused =
+    diaryPanel &&
+    !diaryPanel.classList.contains("hidden") &&
+    activeElement === diaryInput;
+  const anyKeyboardFocused =
+    composerFocused || foodFocused || scheduleFocused || messageSearchFocused || diaryFocused;
   if (!anyKeyboardFocused || height > baseViewportHeight) {
     baseViewportHeight = Math.max(baseViewportHeight, height, window.innerHeight);
   }
@@ -228,6 +246,7 @@ function syncViewportHeight() {
   document.body.classList.toggle("schedule-keyboard-open", scheduleFocused);
   document.body.classList.toggle("schedule-content-keyboard-open", scheduleContentFocused);
   document.body.classList.toggle("message-search-keyboard-open", messageSearchFocused);
+  document.body.classList.toggle("diary-keyboard-open", diaryFocused);
 }
 
 function syncViewportSoon() {
@@ -676,6 +695,51 @@ function notifyIncomingMessage(message) {
   });
 }
 
+function emitTyping(active) {
+  if (!state.socket?.connected) {
+    return;
+  }
+
+  state.socket.emit(active ? "typing:start" : "typing:stop");
+}
+
+function handleLocalTyping() {
+  clearTimeout(typingEmitTimer);
+  clearTimeout(typingStopTimer);
+
+  typingEmitTimer = setTimeout(() => emitTyping(Boolean(messageInput.value.trim())), 120);
+  typingStopTimer = setTimeout(() => emitTyping(false), 1400);
+}
+
+function stopLocalTyping() {
+  clearTimeout(typingEmitTimer);
+  clearTimeout(typingStopTimer);
+  emitTyping(false);
+}
+
+function showTypingIndicator(user) {
+  clearTimeout(typingIndicatorTimer);
+
+  if (!savedStatusText || statusText.textContent !== "对方正在输入...") {
+    savedStatusText = statusText.textContent;
+  }
+
+  statusText.textContent = `${user?.displayName || "对方"}正在输入...`;
+  typingCat?.classList.remove("hidden");
+  typingIndicatorTimer = setTimeout(hideTypingIndicator, 2400);
+}
+
+function hideTypingIndicator() {
+  clearTimeout(typingIndicatorTimer);
+  typingCat?.classList.add("hidden");
+
+  if (statusText.textContent.includes("正在输入")) {
+    statusText.textContent = savedStatusText || "已连接";
+  }
+
+  savedStatusText = "";
+}
+
 async function sendMessageByHttp(payload) {
   const response = await api("/api/messages", {
     method: "POST",
@@ -716,6 +780,10 @@ function closeSchedulePanel() {
   schedulePanel?.classList.add("hidden");
 }
 
+function closeDiaryPanel() {
+  diaryPanel?.classList.add("hidden");
+}
+
 function todayInputValue() {
   const date = new Date();
   const year = date.getFullYear();
@@ -734,6 +802,120 @@ async function openSchedulePanel() {
   schedulePanel?.classList.remove("hidden");
   scheduleDateInput.value ||= todayInputValue();
   await loadScheduleItems();
+}
+
+async function openDiaryPanel() {
+  diaryPanel?.classList.remove("hidden");
+  await loadDiaryEntries();
+}
+
+async function loadDiaryEntries() {
+  if (!diaryList) {
+    return;
+  }
+
+  diaryList.textContent = "正在加载...";
+
+  try {
+    const response = await api("/api/diary-entries");
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "日记加载失败。");
+    }
+
+    state.diaryEntries = data.entries || [];
+    renderDiaryEntries();
+  } catch (error) {
+    diaryList.textContent = error.message;
+  }
+}
+
+function renderDiaryEntries() {
+  if (!diaryList) {
+    return;
+  }
+
+  diaryList.innerHTML = "";
+
+  if (!state.diaryEntries.length) {
+    diaryList.textContent = "还没有写日记。";
+    return;
+  }
+
+  const groups = new Map();
+  for (const entry of state.diaryEntries) {
+    const group = groups.get(entry.entryDate) || [];
+    group.push(entry);
+    groups.set(entry.entryDate, group);
+  }
+
+  for (const [date, entries] of groups) {
+    const section = document.createElement("section");
+    section.className = "diary-day";
+    const title = document.createElement("h3");
+    title.textContent = formatFoodDate(date);
+    const list = document.createElement("div");
+    list.className = "diary-day-list";
+
+    for (const entry of entries) {
+      const item = document.createElement("article");
+      item.className = "diary-item";
+      item.innerHTML = `
+        <strong></strong>
+        <p></p>
+      `;
+      item.querySelector("strong").textContent = entry.userName;
+      item.querySelector("p").textContent = entry.content;
+      list.append(item);
+    }
+
+    section.append(title, list);
+    diaryList.append(section);
+  }
+}
+
+async function saveDiaryEntry(event) {
+  event.preventDefault();
+  const content = diaryInput.value.trim();
+
+  if (!content) {
+    return;
+  }
+
+  try {
+    const response = await api("/api/diary-entries", {
+      method: "POST",
+      body: JSON.stringify({ content }),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "保存失败。");
+    }
+
+    diaryInput.value = "";
+    upsertDiaryEntry(data.entry);
+  } catch (error) {
+    statusText.textContent = error.message;
+  }
+}
+
+function upsertDiaryEntry(entry) {
+  const index = state.diaryEntries.findIndex((current) => String(current.id) === String(entry.id));
+
+  if (index >= 0) {
+    state.diaryEntries[index] = entry;
+  } else {
+    state.diaryEntries.unshift(entry);
+  }
+
+  state.diaryEntries.sort((left, right) =>
+    left.entryDate === right.entryDate
+      ? left.userId.localeCompare(right.userId)
+      : right.entryDate.localeCompare(left.entryDate)
+  );
+  renderDiaryEntries();
 }
 
 function pickRandom(items) {
@@ -1971,12 +2153,36 @@ async function loadMessages() {
   data.messages.forEach(renderMessage);
 }
 
+async function refreshMessagesAfterResume(force = false) {
+  if (!state.token || chatPanel.classList.contains("hidden")) {
+    return;
+  }
+
+  const now = Date.now();
+  if (!force && now - lastResumeRefreshAt < 1200) {
+    return;
+  }
+
+  lastResumeRefreshAt = now;
+
+  try {
+    await loadMessages();
+    statusText.textContent = state.socket?.connected ? "已同步最新消息" : "已同步最新消息，实时连接正在恢复";
+    if (!state.socket?.connected) {
+      connectSocket();
+    }
+  } catch {
+    statusText.textContent = "消息同步失败，请稍后再试";
+  }
+}
+
 function connectSocket() {
   state.socket?.disconnect();
   state.socket = io({ auth: { token: state.token } });
 
   state.socket.on("connect", () => {
     statusText.textContent = "已连接";
+    refreshMessagesAfterResume(true);
   });
 
   state.socket.on("disconnect", () => {
@@ -1996,6 +2202,8 @@ function connectSocket() {
     renderMessage(message);
     notifyIncomingMessage(message);
   });
+  state.socket.on("typing:start", ({ user }) => showTypingIndicator(user));
+  state.socket.on("typing:stop", hideTypingIndicator);
   state.socket.on("message:recalled", replaceMessage);
   state.socket.on("message:deleted", ({ id }) => removeMessage(id));
   state.socket.on("messages:cleared", () => {
@@ -2009,6 +2217,7 @@ function connectSocket() {
   state.socket.on("food:dayDeleted", removeFoodDay);
   state.socket.on("schedule:created", upsertScheduleItem);
   state.socket.on("schedule:deleted", removeScheduleItem);
+  state.socket.on("diary:saved", upsertDiaryEntry);
   state.socket.on("call:offer", receiveCall);
   state.socket.on("call:answer", applyAnswer);
   state.socket.on("call:ice", applyIce);
@@ -2092,11 +2301,15 @@ sendButton?.addEventListener("click", async (event) => {
 messageInput.addEventListener("input", () => {
   messageInput.style.height = "auto";
   messageInput.style.height = `${messageInput.scrollHeight}px`;
+  handleLocalTyping();
   syncViewportSoon();
 });
 
 messageInput.addEventListener("focus", syncViewportSoon);
-messageInput.addEventListener("blur", syncViewportSoon);
+messageInput.addEventListener("blur", () => {
+  stopLocalTyping();
+  syncViewportSoon();
+});
 foodDateInput?.addEventListener("focus", syncViewportSoon);
 foodDateInput?.addEventListener("blur", syncViewportSoon);
 foodNameInput?.addEventListener("focus", syncViewportSoon);
@@ -2107,6 +2320,8 @@ scheduleContentInput?.addEventListener("focus", syncViewportSoon);
 scheduleContentInput?.addEventListener("blur", syncViewportSoon);
 messageSearchInput?.addEventListener("focus", syncViewportSoon);
 messageSearchInput?.addEventListener("blur", syncViewportSoon);
+diaryInput?.addEventListener("focus", syncViewportSoon);
+diaryInput?.addEventListener("blur", syncViewportSoon);
 
 logoutButton.addEventListener("click", () => {
   localStorage.removeItem("chat_token");
@@ -2191,6 +2406,9 @@ document.addEventListener("click", (event) => {
   if (schedulePanel && !schedulePanel.classList.contains("hidden") && event.target === schedulePanel) {
     closeSchedulePanel();
   }
+  if (diaryPanel && !diaryPanel.classList.contains("hidden") && event.target === diaryPanel) {
+    closeDiaryPanel();
+  }
 });
 
 attachButton.addEventListener("click", () => {
@@ -2254,6 +2472,9 @@ scheduleForm?.addEventListener("submit", addScheduleItem);
 closeScheduleButton?.addEventListener("click", closeSchedulePanel);
 todayBadge?.addEventListener("click", openWeatherPanel);
 closeWeatherButton?.addEventListener("click", closeWeatherPanel);
+diaryButton?.addEventListener("click", openDiaryPanel);
+diaryForm?.addEventListener("submit", saveDiaryEntry);
+closeDiaryButton?.addEventListener("click", closeDiaryPanel);
 openPasswordChangeButton?.addEventListener("click", openPasswordChangePanel);
 passwordChangeForm?.addEventListener("submit", changePassword);
 closePasswordChangeButton?.addEventListener("click", closePasswordChangePanel);
@@ -2345,6 +2566,13 @@ renderEmojiPanel();
 setEmojiTab("emoji");
 syncViewportHeight();
 window.addEventListener("resize", syncViewportSoon);
+window.addEventListener("focus", () => refreshMessagesAfterResume());
+window.addEventListener("pageshow", () => refreshMessagesAfterResume(true));
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    refreshMessagesAfterResume(true);
+  }
+});
 window.visualViewport?.addEventListener("resize", syncViewportSoon);
 window.visualViewport?.addEventListener("scroll", syncViewportSoon);
 boot();

@@ -51,6 +51,17 @@ function createSqliteStore(databasePath) {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS diary_entries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entry_date TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      user_name TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(entry_date, user_id)
+    );
+
     CREATE TABLE IF NOT EXISTS user_passwords (
       user_id TEXT PRIMARY KEY,
       password_hash TEXT NOT NULL,
@@ -238,6 +249,37 @@ function createSqliteStore(databasePath) {
     WHERE id = ?
   `);
   const deleteScheduleItem = db.prepare("DELETE FROM schedule_items WHERE id = ?");
+  const selectDiaryEntries = db.prepare(`
+    SELECT id,
+           entry_date AS entryDate,
+           user_id AS userId,
+           user_name AS userName,
+           content,
+           created_at AS createdAt,
+           updated_at AS updatedAt
+    FROM diary_entries
+    ORDER BY entry_date DESC, user_id ASC
+    LIMIT ?
+  `);
+  const upsertDiaryEntry = db.prepare(`
+    INSERT INTO diary_entries (entry_date, user_id, user_name, content, updated_at)
+    VALUES (?, ?, ?, ?, datetime('now'))
+    ON CONFLICT(entry_date, user_id) DO UPDATE SET
+      user_name = excluded.user_name,
+      content = excluded.content,
+      updated_at = datetime('now')
+  `);
+  const selectDiaryEntry = db.prepare(`
+    SELECT id,
+           entry_date AS entryDate,
+           user_id AS userId,
+           user_name AS userName,
+           content,
+           created_at AS createdAt,
+           updated_at AS updatedAt
+    FROM diary_entries
+    WHERE entry_date = ? AND user_id = ?
+  `);
   const selectUserPasswordHash = db.prepare("SELECT password_hash AS passwordHash FROM user_passwords WHERE user_id = ?");
   const upsertUserPasswordHash = db.prepare(`
     INSERT INTO user_passwords (user_id, password_hash, updated_at)
@@ -359,6 +401,13 @@ function createSqliteStore(databasePath) {
       deleteScheduleItem.run(id);
       return item || null;
     },
+    async listDiaryEntries(limit) {
+      return selectDiaryEntries.all(limit);
+    },
+    async saveDiaryEntry(user, entryDate, content) {
+      upsertDiaryEntry.run(entryDate, user.id, user.displayName, content);
+      return selectDiaryEntry.get(entryDate, user.id);
+    },
   };
 }
 
@@ -410,6 +459,17 @@ function createPostgresStore(databaseUrl) {
           created_by_id TEXT NOT NULL,
           created_by_name TEXT NOT NULL,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE TABLE IF NOT EXISTS diary_entries (
+          id BIGSERIAL PRIMARY KEY,
+          entry_date DATE NOT NULL,
+          user_id TEXT NOT NULL,
+          user_name TEXT NOT NULL,
+          content TEXT NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          UNIQUE(entry_date, user_id)
         );
 
         CREATE TABLE IF NOT EXISTS user_passwords (
@@ -749,6 +809,41 @@ function createPostgresStore(databaseUrl) {
         [id]
       );
       return result.rows[0] || null;
+    },
+    async listDiaryEntries(limit) {
+      const result = await pool.query(
+        `SELECT id::text AS "id",
+                to_char(entry_date, 'YYYY-MM-DD') AS "entryDate",
+                user_id AS "userId",
+                user_name AS "userName",
+                content,
+                created_at AS "createdAt",
+                updated_at AS "updatedAt"
+         FROM diary_entries
+         ORDER BY entry_date DESC, user_id ASC
+         LIMIT $1`,
+        [limit]
+      );
+      return result.rows;
+    },
+    async saveDiaryEntry(user, entryDate, content) {
+      const result = await pool.query(
+        `INSERT INTO diary_entries (entry_date, user_id, user_name, content, updated_at)
+         VALUES ($1, $2, $3, $4, NOW())
+         ON CONFLICT (entry_date, user_id)
+         DO UPDATE SET user_name = EXCLUDED.user_name,
+                       content = EXCLUDED.content,
+                       updated_at = NOW()
+         RETURNING id::text AS "id",
+                   to_char(entry_date, 'YYYY-MM-DD') AS "entryDate",
+                   user_id AS "userId",
+                   user_name AS "userName",
+                   content,
+                   created_at AS "createdAt",
+                   updated_at AS "updatedAt"`,
+        [entryDate, user.id, user.displayName, content]
+      );
+      return result.rows[0];
     },
   };
 }

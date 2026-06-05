@@ -200,6 +200,19 @@ button:hover {
   white-space: nowrap;
 }
 
+.title-stack {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.diary-button {
+  width: 74px;
+  height: 24px;
+  padding: 0;
+  font-size: 11px;
+}
+
 .important-days-button {
   width: 74px;
   height: 32px;
@@ -230,6 +243,7 @@ button:hover {
   display: grid;
   align-items: start;
   gap: 3px;
+  max-width: 124px;
   min-width: 0;
 }
 
@@ -250,7 +264,7 @@ button:hover {
 .today-badge {
   display: grid;
   gap: 4px;
-  width: auto;
+  width: 100%;
   height: auto;
   border: 0;
   border-radius: 0;
@@ -264,8 +278,7 @@ button:hover {
   overflow: hidden;
   padding: 0;
   text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .today-badge:hover {
@@ -277,12 +290,18 @@ button:hover {
   color: var(--text);
   font-size: 12px;
   font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .today-badge small {
   color: var(--accent);
   font-size: 11px;
   font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chat-header p {
@@ -690,6 +709,109 @@ button:hover {
   gap: 10px;
 }
 
+.typing-cat {
+  position: fixed;
+  right: 18px;
+  bottom: calc(92px + env(safe-area-inset-bottom));
+  z-index: 28;
+  width: 54px;
+  height: 40px;
+  pointer-events: none;
+  animation: cat-run 4.8s linear infinite alternate;
+}
+
+.typing-cat span {
+  position: absolute;
+  display: block;
+  background: #111827;
+  border-radius: 1px;
+}
+
+.typing-cat-body {
+  right: 12px;
+  bottom: 9px;
+  width: 28px;
+  height: 15px;
+  box-shadow: inset 4px 4px 0 #f8fafc;
+}
+
+.typing-cat-head {
+  right: 2px;
+  bottom: 15px;
+  width: 18px;
+  height: 16px;
+  box-shadow:
+    inset 4px 5px 0 #f8fafc,
+    3px -5px 0 -1px #111827,
+    12px -5px 0 -1px #111827,
+    5px 5px 0 -3px #f97316,
+    12px 5px 0 -3px #f97316;
+}
+
+.typing-cat-tail {
+  left: 4px;
+  bottom: 20px;
+  width: 16px;
+  height: 5px;
+  transform: rotate(-25deg);
+  transform-origin: right center;
+  animation: cat-tail 0.55s steps(2, end) infinite;
+}
+
+.typing-cat-leg {
+  bottom: 2px;
+  width: 5px;
+  height: 10px;
+  animation: cat-step 0.45s steps(2, end) infinite;
+}
+
+.typing-cat-leg-a {
+  right: 30px;
+}
+
+.typing-cat-leg-b {
+  right: 15px;
+  animation-delay: 0.22s;
+}
+
+@keyframes cat-run {
+  0% {
+    transform: translateX(0) scaleX(1);
+  }
+
+  48% {
+    transform: translateX(-44vw) scaleX(1);
+  }
+
+  52% {
+    transform: translateX(-44vw) scaleX(-1);
+  }
+
+  100% {
+    transform: translateX(-78vw) scaleX(-1);
+  }
+}
+
+@keyframes cat-tail {
+  from {
+    transform: rotate(-25deg);
+  }
+
+  to {
+    transform: rotate(8deg);
+  }
+}
+
+@keyframes cat-step {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(-3px);
+  }
+}
+
 #declineCallButton,
 #endCallButton {
   background: #dc2626;
@@ -701,6 +823,7 @@ button:hover {
 }
 
 .important-days-panel,
+.diary-panel,
 .message-search-panel,
 .other-feature-panel,
 .password-change-panel,
@@ -717,6 +840,7 @@ button:hover {
 }
 
 .important-days-card,
+.diary-card,
 .message-search-card,
 .other-feature-card,
 .password-change-card,
@@ -751,6 +875,13 @@ button:hover {
   min-height: 0;
 }
 
+.diary-card {
+  width: min(100%, 460px);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  max-height: calc(var(--app-height, 100dvh) - 36px);
+  min-height: 0;
+}
+
 .modal-title {
   display: flex;
   align-items: center;
@@ -764,6 +895,7 @@ button:hover {
 }
 
 .important-days-list,
+.diary-list,
 .message-search-results,
 .other-feature-list,
 .weather-list,
@@ -774,6 +906,66 @@ button:hover {
   color: var(--muted);
   font-size: 14px;
   min-height: 0;
+}
+
+.diary-list {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+
+.diary-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 68px;
+  gap: 8px;
+}
+
+.diary-form input,
+.diary-form button {
+  height: 40px;
+}
+
+.diary-form button {
+  padding: 0;
+}
+
+.diary-day {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f9fafb;
+  padding: 10px;
+}
+
+.diary-day h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.diary-day-list {
+  display: grid;
+  gap: 8px;
+}
+
+.diary-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px 12px;
+}
+
+.diary-item strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.diary-item p {
+  margin: 5px 0 0;
+  color: var(--text);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .message-search-card {
@@ -1177,29 +1369,54 @@ button:hover {
   }
 
   .chat-header {
+    gap: 8px;
     padding: calc(12px + env(safe-area-inset-top)) 14px 12px;
   }
 
+  .chat-header > div:first-child {
+    flex: 1 1 auto;
+  }
+
   .chat-header h1 {
-    font-size: 15px;
+    overflow: hidden;
+    font-size: 14px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .important-days-button {
-    width: 60px;
+    width: 52px;
     height: 28px;
-    font-size: 12px;
+    font-size: 11px;
   }
 
   .other-feature-button {
-    width: 60px;
+    width: 52px;
     height: 28px;
-    font-size: 12px;
+    font-size: 11px;
   }
 
   .food-button {
-    width: 46px;
+    width: 42px;
     height: 28px;
-    font-size: 12px;
+    font-size: 11px;
+  }
+
+  .diary-button {
+    width: 52px;
+    height: 24px;
+    font-size: 10px;
+  }
+
+  .title-row {
+    display: grid;
+    grid-template-columns: minmax(66px, 1fr) 52px 42px minmax(72px, 78px);
+    gap: 5px;
+    width: 100%;
+  }
+
+  .header-weather-stack {
+    max-width: 78px;
   }
 
   .message-search-button {
@@ -1209,19 +1426,19 @@ button:hover {
   }
 
   .schedule-button {
-    width: 46px;
+    width: 42px;
     height: 28px;
-    font-size: 12px;
+    font-size: 11px;
   }
 
   .today-badge {
-    font-size: 10px;
+    font-size: 9px;
     min-width: 0;
   }
 
   .today-badge strong,
   .today-badge small {
-    font-size: 10px;
+    font-size: 9px;
   }
 
   .chat-header p {
@@ -1239,7 +1456,8 @@ button:hover {
   }
 
   .icon-control {
-    width: 52px;
+    width: 44px;
+    font-size: 12px;
   }
 
   .messages {
@@ -1387,6 +1605,17 @@ button:hover {
     overflow-y: auto;
   }
 
+  body.diary-keyboard-open .diary-panel {
+    align-items: end;
+    padding-bottom: calc(max(var(--keyboard-bottom, 0px), env(safe-area-inset-bottom)) + 10px);
+  }
+
+  body.diary-keyboard-open .diary-card {
+    width: calc(100% - 20px);
+    max-height: calc(var(--app-height, 100dvh) - max(var(--keyboard-bottom, 0px), env(safe-area-inset-bottom)) - 20px);
+    overflow-y: auto;
+  }
+
   .composer button,
   .attach-button,
   .call-button,
@@ -1413,12 +1642,14 @@ button:hover {
   }
 
   .food-form,
+  .diary-form,
   .message-search-form,
   .schedule-form {
     grid-template-columns: 1fr;
   }
 
   .food-form button,
+  .diary-form button,
   .message-search-form button,
   .schedule-form button {
     width: 100%;
