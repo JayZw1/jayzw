@@ -1322,13 +1322,32 @@ button:hover {
 
   .title-row {
     display: grid;
-    grid-template-columns: minmax(66px, 1fr) 52px 42px minmax(72px, 78px);
-    gap: 5px;
+    grid-template-areas:
+      "title feature tools"
+      "title weather weather";
+    grid-template-columns: minmax(76px, 1fr) 52px 42px;
+    column-gap: 8px;
+    row-gap: 6px;
     width: 100%;
   }
 
+  .title-stack {
+    grid-area: title;
+    align-self: center;
+  }
+
+  .header-feature-stack {
+    grid-area: feature;
+  }
+
+  .header-life-stack {
+    grid-area: tools;
+  }
+
   .header-weather-stack {
-    max-width: 78px;
+    grid-area: weather;
+    max-width: none;
+    min-width: 0;
   }
 
   .message-search-button {
@@ -1400,7 +1419,7 @@ button:hover {
   body.composer-keyboard-open .composer {
     position: fixed;
     right: 0;
-    bottom: max(var(--keyboard-bottom, 0px), env(safe-area-inset-bottom));
+    bottom: env(safe-area-inset-bottom);
     left: 0;
     z-index: 30;
     background: #fff;
@@ -1408,7 +1427,8 @@ button:hover {
   }
 
   body.composer-keyboard-open .messages {
-    padding-bottom: calc(var(--composer-height, 68px) + 16px);
+    padding-bottom: calc(var(--composer-height, 68px) + 8px);
+    scroll-padding-bottom: calc(var(--composer-height, 68px) + 8px);
   }
 
   body.food-keyboard-open .food-panel {

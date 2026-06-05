@@ -250,8 +250,22 @@ function syncViewportHeight() {
 }
 
 function syncViewportSoon() {
-  requestAnimationFrame(syncViewportHeight);
-  setTimeout(syncViewportHeight, 280);
+  requestAnimationFrame(() => {
+    syncViewportHeight();
+    if (document.activeElement === messageInput) {
+      scrollMessagesToBottom();
+    }
+  });
+  setTimeout(() => {
+    syncViewportHeight();
+    if (document.activeElement === messageInput) {
+      scrollMessagesToBottom();
+    }
+  }, 280);
+}
+
+function scrollMessagesToBottom() {
+  messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
 function api(path, options = {}) {
@@ -356,7 +370,7 @@ function renderMessage(message, options = {}) {
   updateMessageElement(item, message);
   insertMessageElement(item, messageId);
   if (options.scroll !== false) {
-    messagesEl.scrollTop = messagesEl.scrollHeight;
+    scrollMessagesToBottom();
   }
 }
 
