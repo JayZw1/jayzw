@@ -247,6 +247,13 @@ button:hover {
   min-width: 0;
 }
 
+.header-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .message-search-button {
   width: 58px;
   height: 24px;
@@ -306,6 +313,7 @@ button:hover {
 
 .chat-header p {
   font-size: 13px;
+  min-width: 0;
 }
 
 .messages {
@@ -1373,6 +1381,9 @@ button:hover {
   }
 
   .chat-header h1 {
+    display: flex;
+    align-items: center;
+    height: 25px;
     overflow: hidden;
     font-size: 13px;
     text-overflow: ellipsis;
@@ -1399,24 +1410,26 @@ button:hover {
 
   .diary-button {
     width: 52px;
-    height: 23px;
+    height: 25px;
     font-size: 10px;
   }
 
   .title-row {
     display: grid;
     grid-template-areas:
-      "title feature tools"
-      "title weather weather";
-    grid-template-columns: minmax(76px, 1fr) 52px 42px;
+      "title feature tools actions"
+      "title feature tools actions"
+      "status status status status";
+    grid-template-columns: minmax(110px, 1fr) 52px 42px 40px;
     column-gap: 6px;
-    row-gap: 4px;
+    row-gap: 5px;
     width: 100%;
   }
 
   .title-stack {
     grid-area: title;
-    align-self: center;
+    align-self: start;
+    gap: 4px;
   }
 
   .header-feature-stack {
@@ -1427,10 +1440,21 @@ button:hover {
     grid-area: tools;
   }
 
+  .header-action-stack {
+    grid-area: actions;
+  }
+
   .header-weather-stack {
-    grid-area: weather;
     max-width: none;
     min-width: 0;
+  }
+
+  .header-status-row {
+    display: grid;
+    grid-area: status;
+    grid-template-columns: minmax(0, 1fr) 52px minmax(84px, 98px);
+    align-items: center;
+    gap: 6px;
   }
 
   .message-search-button {
@@ -1456,8 +1480,11 @@ button:hover {
   }
 
   .chat-header p {
-    margin-top: 3px;
+    margin: 0;
     font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .ghost {
@@ -1472,8 +1499,8 @@ button:hover {
 
   .icon-control {
     width: 40px;
-    height: 28px;
-    font-size: 12px;
+    height: 25px;
+    font-size: 11px;
   }
 
   .messages {

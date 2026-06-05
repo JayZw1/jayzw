@@ -54,20 +54,22 @@
                 <button class="ghost food-button" id="foodButton" type="button">买菜</button>
                 <button class="ghost schedule-button" id="scheduleButton" type="button">行程</button>
               </div>
-              <div class="header-weather-stack">
+              <div class="header-tool-stack header-action-stack">
+                <button class="ghost icon-control danger-control" id="clearHistoryButton" type="button" title="清空聊天记录">清</button>
+                <button class="ghost icon-control" id="logoutButton" type="button">退出</button>
+              </div>
+              <div class="header-status-row">
+                <p id="statusText">正在连接...</p>
                 <button class="ghost message-search-button" id="messageSearchButton" type="button">聊天记录</button>
+                <div class="header-weather-stack">
                 <button class="today-badge" id="todayBadge" type="button" title="查看未来天气" hidden>
                   <strong id="todayWeatherText" hidden></strong>
                   <span id="todayDateText"></span>
                   <small id="todayFestivalText" hidden></small>
                 </button>
+                </div>
               </div>
             </div>
-            <p id="statusText">正在连接...</p>
-          </div>
-          <div class="header-actions">
-            <button class="ghost icon-control danger-control" id="clearHistoryButton" type="button" title="清空聊天记录">清</button>
-            <button class="ghost" id="logoutButton" type="button">退出</button>
           </div>
         </header>
 
