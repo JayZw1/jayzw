@@ -18,6 +18,65 @@ const TOKEN_MAX_AGE = "30d";
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 const CLEAR_HISTORY_PASSWORD = process.env.CLEAR_HISTORY_PASSWORD || "zhangwei020216";
 const DIARY_MIN_DATE = "2025-01-01";
+const FESTIVAL_DETAILS = {
+  元旦: {
+    intro: "新一年的开始，适合一起定下新的小目标。",
+    note: "公历节日，每年1月1日。",
+  },
+  除夕: {
+    intro: "农历年的最后一天，寓意辞旧迎新、团圆守岁。",
+    note: "传统上会吃年夜饭、贴春联、等待新年到来。",
+  },
+  春节: {
+    intro: "中国最重要的传统节日，象征团圆、祝福和新的开始。",
+    note: "农历正月初一，也叫农历新年。",
+  },
+  元宵节: {
+    intro: "春节后的第一个月圆之夜，寓意团圆圆满。",
+    note: "常见习俗有吃汤圆、赏灯、猜灯谜。",
+  },
+  清明节: {
+    intro: "慎终追远、踏青赏春的节日。",
+    note: "通常在公历4月4日至6日之间。",
+  },
+  劳动节: {
+    intro: "致敬劳动与生活，也适合安排一次轻松的小休息。",
+    note: "公历5月1日。",
+  },
+  端午节: {
+    intro: "纪念与祈福并重的传统节日。",
+    note: "农历五月初五，常见习俗有吃粽子、赛龙舟、挂艾草。",
+  },
+  七夕节: {
+    intro: "中国传统爱情节日，适合给彼此留一点仪式感。",
+    note: "农历七月初七，源自牛郎织女传说。",
+  },
+  中秋节: {
+    intro: "象征团圆与思念的传统节日。",
+    note: "农历八月十五，常见习俗有赏月、吃月饼。",
+  },
+  国庆节: {
+    intro: "庆祝中华人民共和国成立的节日。",
+    note: "公历10月1日。",
+  },
+  重阳节: {
+    intro: "登高祈福、敬老感恩的传统节日。",
+    note: "农历九月初九。",
+  },
+};
+const TRACKED_FESTIVALS = [
+  { name: "元旦", type: "solar", month: 1, day: 1 },
+  { name: "除夕", type: "lunar", month: 12, day: 30, fallbackDay: 29 },
+  { name: "春节", type: "lunar", month: 1, day: 1 },
+  { name: "元宵节", type: "lunar", month: 1, day: 15 },
+  { name: "清明节", type: "solar", month: 4, day: 4 },
+  { name: "劳动节", type: "solar", month: 5, day: 1 },
+  { name: "端午节", type: "lunar", month: 5, day: 5 },
+  { name: "七夕节", type: "lunar", month: 7, day: 7 },
+  { name: "中秋节", type: "lunar", month: 8, day: 15 },
+  { name: "国庆节", type: "solar", month: 10, day: 1 },
+  { name: "重阳节", type: "lunar", month: 9, day: 9 },
+];
 const STICKER_API_URL =
   process.env.STICKER_API_URL ||
   "https://cn.apihz.cn/api/img/apihzbqb.php?id=88888888&key=88888888&type=2&words={query}&limit=8";
@@ -271,6 +330,10 @@ app.get("/api/important-days", requireAuth, async (req, res) => {
       buildLunarDay("xht's birthday", "农历12月3日", 12, 3),
     ],
   });
+});
+
+app.get("/api/upcoming-festival", requireAuth, (req, res) => {
+  res.json({ festival: buildUpcomingFestival() });
 });
 
 app.get("/api/food-items", requireAuth, async (req, res) => {
@@ -740,6 +803,90 @@ function buildImportantDay(name, calendarLabel, target) {
     nextDate: formatYmd(target),
     daysLeft: daysBetween(today, target),
   };
+}
+
+function buildUpcomingFestival() {
+  const today = todayInChina();
+  const festivals = TRACKED_FESTIVALS.map((festival) => buildFestivalDay(festival))
+    .filter(Boolean)
+    .sort((left, right) => left.daysLeft - right.daysLeft);
+  const nearestDate = festivals[0]?.date;
+
+  if (!nearestDate) {
+    return null;
+  }
+
+  const importantDays = [
+    buildSolarDay("结婚纪念日", "公历3月2日", 3, 2),
+    buildLunarDay("zw's birthday", "农历2月16日", 2, 16),
+    buildLunarDay("xht's birthday", "农历12月3日", 12, 3),
+  ].filter((day) => day.nextDate === nearestDate);
+
+  return {
+    date: nearestDate,
+    label: formatChineseDate(parseYmdObject(nearestDate)),
+    daysLeft: daysBetween(today, parseYmdObject(nearestDate)),
+    importantDays,
+    festivals: festivals.filter((festival) => festival.date === nearestDate),
+  };
+}
+
+function buildFestivalDay(festival) {
+  const today = todayInChina();
+  let target = null;
+  let calendarLabel = "";
+
+  if (festival.type === "solar") {
+    target = { year: today.year, month: festival.month, day: festival.day };
+    if (compareYmd(target, today) < 0) {
+      target.year += 1;
+    }
+    calendarLabel = `公历${festival.month}月${festival.day}日`;
+  } else {
+    const currentLunarYear = Solar.fromYmd(today.year, today.month, today.day).getLunar().getYear();
+    for (let year = currentLunarYear - 1; year <= currentLunarYear + 3; year += 1) {
+      const candidate = buildLunarFestivalTarget(year, festival);
+      if (candidate && compareYmd(candidate, today) >= 0 && (!target || compareYmd(candidate, target) < 0)) {
+        target = candidate;
+      }
+    }
+    calendarLabel = `农历${festival.month}月${festival.day}日`;
+  }
+
+  if (!target) {
+    return null;
+  }
+
+  const details = FESTIVAL_DETAILS[festival.name] || {};
+
+  return {
+    name: festival.name,
+    date: formatYmd(target),
+    calendarLabel,
+    daysLeft: daysBetween(today, target),
+    intro: details.intro || "一个值得记住的节日。",
+    note: details.note || "",
+  };
+}
+
+function buildLunarFestivalTarget(year, festival) {
+  try {
+    const solar = Lunar.fromYmd(year, festival.month, festival.day).getSolar();
+    return { year: solar.getYear(), month: solar.getMonth(), day: solar.getDay() };
+  } catch {
+    if (!festival.fallbackDay) {
+      return null;
+    }
+    const solar = Lunar.fromYmd(year, festival.month, festival.fallbackDay).getSolar();
+    return { year: solar.getYear(), month: solar.getMonth(), day: solar.getDay() };
+  }
+}
+
+function parseYmdObject(value) {
+  const [year, month, day] = String(value || "")
+    .split("-")
+    .map((part) => Number(part));
+  return { year, month, day };
 }
 
 io.use((socket, next) => {

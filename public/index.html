@@ -46,6 +46,10 @@
                 <button class="ghost diary-button" id="diaryButton" type="button">我们的日记</button>
                 <h1>碎碎念收件箱</h1>
               </div>
+              <div class="header-upcoming-stack">
+                <button class="upcoming-mini-button" id="upcomingScheduleButton" type="button">即将到来的行程</button>
+                <button class="upcoming-mini-button" id="upcomingFestivalButton" type="button">即将到来的节日</button>
+              </div>
               <div class="header-tool-stack header-feature-stack">
                 <button class="ghost other-feature-button" id="otherFeatureButton" type="button">其他功能</button>
                 <button class="ghost important-days-button" id="importantDaysButton" type="button">重要日子</button>
@@ -166,6 +170,26 @@
             <button class="ghost icon-control" id="closeOtherFeatureButton" type="button" title="关闭">×</button>
           </div>
           <div class="other-feature-list" id="otherFeatureList"></div>
+        </div>
+      </div>
+
+      <div class="upcoming-schedule-panel hidden" id="upcomingSchedulePanel">
+        <div class="upcoming-schedule-card">
+          <div class="modal-title">
+            <h2>即将到来的行程</h2>
+            <button class="ghost icon-control" id="closeUpcomingScheduleButton" type="button" title="关闭">×</button>
+          </div>
+          <div class="upcoming-schedule-list" id="upcomingScheduleList">正在查找...</div>
+        </div>
+      </div>
+
+      <div class="upcoming-festival-panel hidden" id="upcomingFestivalPanel">
+        <div class="upcoming-festival-card">
+          <div class="modal-title">
+            <h2>即将到来的节日</h2>
+            <button class="ghost icon-control" id="closeUpcomingFestivalButton" type="button" title="关闭">×</button>
+          </div>
+          <div class="upcoming-festival-list" id="upcomingFestivalList">正在查找...</div>
         </div>
       </div>
 

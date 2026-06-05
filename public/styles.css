@@ -227,6 +227,27 @@ button:hover {
   font-size: 13px;
 }
 
+.header-upcoming-stack {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.upcoming-mini-button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 0;
+  text-align: right;
+}
+
+.upcoming-mini-button:hover {
+  color: var(--accent);
+}
+
 .food-button {
   width: 52px;
   height: 32px;
@@ -735,6 +756,8 @@ button:hover {
 .diary-panel,
 .message-search-panel,
 .other-feature-panel,
+.upcoming-schedule-panel,
+.upcoming-festival-panel,
 .password-change-panel,
 .weather-panel,
 .food-panel,
@@ -752,6 +775,8 @@ button:hover {
 .diary-card,
 .message-search-card,
 .other-feature-card,
+.upcoming-schedule-card,
+.upcoming-festival-card,
 .password-change-card,
 .weather-card,
 .food-card,
@@ -807,6 +832,8 @@ button:hover {
 .diary-list,
 .message-search-results,
 .other-feature-list,
+.upcoming-schedule-list,
+.upcoming-festival-list,
 .weather-list,
 .food-list,
 .schedule-list {
@@ -1093,10 +1120,72 @@ button:hover {
   min-height: 0;
 }
 
+.upcoming-schedule-card,
+.upcoming-festival-card {
+  grid-template-rows: auto minmax(0, 1fr);
+  max-height: calc(var(--app-height, 100dvh) - 36px);
+  min-height: 0;
+}
+
 .other-feature-list {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-right: 4px;
+}
+
+.upcoming-schedule-list,
+.upcoming-festival-list {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+
+.upcoming-schedule-list h3,
+.upcoming-festival-list h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.upcoming-schedule-items,
+.upcoming-festival-list {
+  display: grid;
+  gap: 8px;
+}
+
+.upcoming-schedule-item,
+.upcoming-festival-item {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f9fafb;
+  padding: 10px 12px;
+}
+
+.upcoming-festival-item.important {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.upcoming-schedule-item strong,
+.upcoming-festival-item strong {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.upcoming-schedule-item span,
+.upcoming-festival-item span,
+.upcoming-festival-item small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.upcoming-festival-item p {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .other-feature-item {
@@ -1445,10 +1534,10 @@ button:hover {
   .title-row {
     display: grid;
     grid-template-areas:
-      "title feature tools spacer actions"
-      "title feature tools spacer actions"
+      "title upcoming feature tools actions"
+      "title upcoming feature tools actions"
       "status status status status status";
-    grid-template-columns: minmax(72px, 1fr) 52px 42px minmax(0, 38px) 40px;
+    grid-template-columns: minmax(66px, 1fr) 66px 52px 42px 40px;
     column-gap: 6px;
     row-gap: 5px;
     width: 100%;
@@ -1462,6 +1551,19 @@ button:hover {
 
   .header-feature-stack {
     grid-area: feature;
+  }
+
+  .header-upcoming-stack {
+    grid-area: upcoming;
+    align-self: start;
+  }
+
+  .upcoming-mini-button {
+    width: 66px;
+    height: 25px;
+    overflow: hidden;
+    font-size: 9px;
+    text-align: right;
   }
 
   .header-life-stack {
@@ -1480,7 +1582,7 @@ button:hover {
   .header-status-row {
     display: grid;
     grid-area: status;
-    grid-template-columns: minmax(72px, 1fr) 52px 42px minmax(0, 38px) 40px;
+    grid-template-columns: minmax(66px, 1fr) 66px 52px 42px 40px;
     align-items: center;
     gap: 6px;
   }
@@ -1490,11 +1592,11 @@ button:hover {
   }
 
   .header-status-row .message-search-button {
-    grid-column: 2;
+    grid-column: 3;
   }
 
   .header-status-row .header-weather-stack {
-    grid-column: 3 / 6;
+    grid-column: 4 / 6;
   }
 
   .message-search-button {

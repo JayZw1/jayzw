@@ -77,6 +77,14 @@ const otherFeatureButton = document.querySelector("#otherFeatureButton");
 const otherFeaturePanel = document.querySelector("#otherFeaturePanel");
 const otherFeatureList = document.querySelector("#otherFeatureList");
 const closeOtherFeatureButton = document.querySelector("#closeOtherFeatureButton");
+const upcomingScheduleButton = document.querySelector("#upcomingScheduleButton");
+const upcomingSchedulePanel = document.querySelector("#upcomingSchedulePanel");
+const upcomingScheduleList = document.querySelector("#upcomingScheduleList");
+const closeUpcomingScheduleButton = document.querySelector("#closeUpcomingScheduleButton");
+const upcomingFestivalButton = document.querySelector("#upcomingFestivalButton");
+const upcomingFestivalPanel = document.querySelector("#upcomingFestivalPanel");
+const upcomingFestivalList = document.querySelector("#upcomingFestivalList");
+const closeUpcomingFestivalButton = document.querySelector("#closeUpcomingFestivalButton");
 const importantDaysButton = document.querySelector("#importantDaysButton");
 const importantDaysPanel = document.querySelector("#importantDaysPanel");
 const importantDaysList = document.querySelector("#importantDaysList");
@@ -813,6 +821,14 @@ function closeOtherFeaturePanel() {
   otherFeaturePanel?.classList.add("hidden");
 }
 
+function closeUpcomingSchedulePanel() {
+  upcomingSchedulePanel?.classList.add("hidden");
+}
+
+function closeUpcomingFestivalPanel() {
+  upcomingFestivalPanel?.classList.add("hidden");
+}
+
 function closeWeatherPanel() {
   weatherPanel?.classList.add("hidden");
 }
@@ -1502,6 +1518,137 @@ async function loadScheduleItems() {
     renderScheduleItems();
   } catch (error) {
     scheduleList.textContent = error.message;
+  }
+}
+
+async function openUpcomingSchedulePanel() {
+  upcomingSchedulePanel?.classList.remove("hidden");
+  if (upcomingScheduleList) {
+    upcomingScheduleList.textContent = "正在查找...";
+  }
+  try {
+    const response = await api("/api/schedule-items");
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "行程加载失败。");
+    }
+
+    state.scheduleItems = data.items || [];
+    renderUpcomingSchedule();
+  } catch (error) {
+    if (upcomingScheduleList) {
+      upcomingScheduleList.textContent = error.message;
+    }
+  }
+}
+
+function renderUpcomingSchedule() {
+  if (!upcomingScheduleList) {
+    return;
+  }
+
+  upcomingScheduleList.innerHTML = "";
+  const today = todayInputValue();
+  const upcomingDates = [...new Set(state.scheduleItems.map((item) => item.plannedDate))]
+    .filter((date) => date >= today)
+    .sort((left, right) => left.localeCompare(right));
+  const nearestDate = upcomingDates[0];
+
+  if (!nearestDate) {
+    upcomingScheduleList.textContent = "暂无即将到来的行程。";
+    return;
+  }
+
+  const title = document.createElement("h3");
+  title.textContent = formatFoodDate(nearestDate);
+  const list = document.createElement("div");
+  list.className = "upcoming-schedule-items";
+  const items = state.scheduleItems.filter((item) => item.plannedDate === nearestDate);
+
+  for (const item of items) {
+    const row = document.createElement("article");
+    row.className = "upcoming-schedule-item";
+    const content = document.createElement("strong");
+    content.textContent = item.content;
+    const meta = document.createElement("span");
+    meta.textContent = item.userName || "";
+    row.append(content, meta);
+    list.append(row);
+  }
+
+  upcomingScheduleList.append(title, list);
+}
+
+async function openUpcomingFestivalPanel() {
+  upcomingFestivalPanel?.classList.remove("hidden");
+  if (upcomingFestivalList) {
+    upcomingFestivalList.textContent = "正在查找...";
+  }
+
+  try {
+    const response = await api("/api/upcoming-festival");
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "节日加载失败。");
+    }
+
+    renderUpcomingFestival(data.festival);
+  } catch (error) {
+    if (upcomingFestivalList) {
+      upcomingFestivalList.textContent = error.message;
+    }
+  }
+}
+
+function renderUpcomingFestival(festival) {
+  if (!upcomingFestivalList) {
+    return;
+  }
+
+  upcomingFestivalList.innerHTML = "";
+
+  if (!festival) {
+    upcomingFestivalList.textContent = "暂无即将到来的节日。";
+    return;
+  }
+
+  const title = document.createElement("h3");
+  title.textContent =
+    festival.daysLeft === 0
+      ? `${festival.label} · 今天`
+      : `${festival.label} · 还有 ${festival.daysLeft} 天`;
+  upcomingFestivalList.append(title);
+
+  for (const day of festival.importantDays || []) {
+    const item = document.createElement("article");
+    item.className = "upcoming-festival-item important";
+    item.innerHTML = `
+      <strong></strong>
+      <span></span>
+      <p></p>
+    `;
+    item.querySelector("strong").textContent = day.name;
+    item.querySelector("span").textContent = day.calendarLabel;
+    item.querySelector("p").textContent = "这一天对你们更重要，所以优先显示在节日前面。";
+    upcomingFestivalList.append(item);
+  }
+
+  for (const itemData of festival.festivals || []) {
+    const item = document.createElement("article");
+    item.className = "upcoming-festival-item";
+    item.innerHTML = `
+      <strong></strong>
+      <span></span>
+      <p></p>
+      <small></small>
+    `;
+    item.querySelector("strong").textContent = itemData.name;
+    item.querySelector("span").textContent = itemData.calendarLabel;
+    item.querySelector("p").textContent = itemData.intro;
+    item.querySelector("small").textContent = itemData.note;
+    upcomingFestivalList.append(item);
   }
 }
 
@@ -2612,6 +2759,20 @@ document.addEventListener("click", (event) => {
   ) {
     closePasswordChangePanel();
   }
+  if (
+    upcomingSchedulePanel &&
+    !upcomingSchedulePanel.classList.contains("hidden") &&
+    event.target === upcomingSchedulePanel
+  ) {
+    closeUpcomingSchedulePanel();
+  }
+  if (
+    upcomingFestivalPanel &&
+    !upcomingFestivalPanel.classList.contains("hidden") &&
+    event.target === upcomingFestivalPanel
+  ) {
+    closeUpcomingFestivalPanel();
+  }
   if (weatherPanel && !weatherPanel.classList.contains("hidden") && event.target === weatherPanel) {
     closeWeatherPanel();
   }
@@ -2677,6 +2838,10 @@ messageSearchForm?.addEventListener("submit", searchMessages);
 closeMessageSearchButton?.addEventListener("click", closeMessageSearchPanel);
 otherFeatureButton?.addEventListener("click", openOtherFeaturePanel);
 closeOtherFeatureButton?.addEventListener("click", closeOtherFeaturePanel);
+upcomingScheduleButton?.addEventListener("click", openUpcomingSchedulePanel);
+closeUpcomingScheduleButton?.addEventListener("click", closeUpcomingSchedulePanel);
+upcomingFestivalButton?.addEventListener("click", openUpcomingFestivalPanel);
+closeUpcomingFestivalButton?.addEventListener("click", closeUpcomingFestivalPanel);
 importantDaysButton?.addEventListener("click", openImportantDaysPanel);
 closeImportantDaysButton?.addEventListener("click", closeImportantDaysPanel);
 foodButton?.addEventListener("click", openFoodPanel);
