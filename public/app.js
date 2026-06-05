@@ -262,10 +262,23 @@ function syncViewportSoon() {
       scrollMessagesToBottom();
     }
   }, 280);
+  setTimeout(() => {
+    if (document.activeElement === messageInput) {
+      syncViewportHeight();
+      scrollMessagesToBottom();
+    }
+  }, 620);
+  setTimeout(() => {
+    if (document.activeElement === messageInput) {
+      syncViewportHeight();
+      scrollMessagesToBottom();
+    }
+  }, 920);
 }
 
 function scrollMessagesToBottom() {
   messagesEl.scrollTop = messagesEl.scrollHeight;
+  messagesEl.lastElementChild?.scrollIntoView({ block: "end" });
 }
 
 function api(path, options = {}) {
