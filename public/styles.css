@@ -1746,6 +1746,23 @@ button:hover {
   .message-search-form,
   .schedule-form {
     grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .food-form input,
+  .food-form button,
+  .schedule-form input,
+  .schedule-form button {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .food-form input[type="date"],
+  .schedule-form input[type="date"] {
+    display: block;
+    appearance: none;
+    -webkit-appearance: none;
   }
 
   .food-form button,
