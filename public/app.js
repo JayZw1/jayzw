@@ -306,11 +306,21 @@ function syncViewportSoon() {
 }
 
 function scrollMessagesToBottom() {
+  if (!shouldStickToLatestMessage()) {
+    messagesEl.scrollTop = 0;
+    return;
+  }
+
   messagesEl.scrollTop = messagesEl.scrollHeight;
   messagesEl.lastElementChild?.scrollIntoView({ block: "end" });
 }
 
 function settleMessagesAtBottom() {
+  if (!shouldStickToLatestMessage()) {
+    messagesEl.scrollTop = 0;
+    return;
+  }
+
   state.bottomSettleUntil = Date.now() + 2600;
   jumpToLatestMessage();
   requestAnimationFrame(jumpToLatestMessage);
@@ -323,6 +333,11 @@ function settleMessagesAtBottomIfActive() {
 }
 
 function jumpToLatestMessage() {
+  if (!shouldStickToLatestMessage()) {
+    messagesEl.scrollTop = 0;
+    return;
+  }
+
   const latest = messagesEl.lastElementChild;
 
   if (!latest) {
@@ -331,6 +346,10 @@ function jumpToLatestMessage() {
 
   latest.scrollIntoView({ block: "end", inline: "nearest", behavior: "auto" });
   messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function shouldStickToLatestMessage() {
+  return messagesEl.scrollHeight > messagesEl.clientHeight + 4;
 }
 
 function api(path, options = {}) {
@@ -3173,10 +3192,20 @@ upcomingFestivalButton?.addEventListener("click", openUpcomingFestivalPanel);
 closeUpcomingFestivalButton?.addEventListener("click", closeUpcomingFestivalPanel);
 importantDaysButton?.addEventListener("click", openImportantDaysPanel);
 closeImportantDaysButton?.addEventListener("click", closeImportantDaysPanel);
-foodButton?.addEventListener("click", openFoodPanel);
+foodButton?.addEventListener("click", () => {
+  if (foodDateInput) {
+    foodDateInput.value = todayInputValue();
+  }
+  openFoodPanel();
+});
 foodForm?.addEventListener("submit", addFoodItem);
 closeFoodButton?.addEventListener("click", closeFoodPanel);
-scheduleButton?.addEventListener("click", openSchedulePanel);
+scheduleButton?.addEventListener("click", () => {
+  if (scheduleDateInput) {
+    scheduleDateInput.value = todayInputValue();
+  }
+  openSchedulePanel();
+});
 scheduleForm?.addEventListener("submit", addScheduleItem);
 closeScheduleButton?.addEventListener("click", closeSchedulePanel);
 todayBadge?.addEventListener("click", openWeatherPanel);
