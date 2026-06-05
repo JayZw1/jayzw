@@ -241,7 +241,7 @@ function syncViewportHeight() {
     ? Math.max(0, baseViewportHeight - height - offsetTop)
     : 0;
   const composerHeight = Math.ceil(messageForm?.getBoundingClientRect().height || 68);
-  const composerBottom = composerFocused ? Math.max(0, keyboardBottom - 150) : 0;
+  const composerBottom = composerFocused ? Math.max(76, keyboardBottom - 92) : 0;
 
   document.documentElement.style.setProperty("--app-height", `${height}px`);
   document.documentElement.style.setProperty("--visual-offset-top", `${offsetTop}px`);
