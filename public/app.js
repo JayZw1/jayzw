@@ -2817,7 +2817,7 @@ async function refreshMessagesAfterResume(force = false) {
   lastResumeRefreshAt = now;
 
   try {
-    await loadMessages({ reset: false, scroll: false });
+    await loadMessages({ reset: false, scroll: true });
     statusText.textContent = state.socket?.connected ? "已同步最新消息" : "已同步最新消息，实时连接正在恢复";
     if (!state.socket?.connected) {
       connectSocket();
