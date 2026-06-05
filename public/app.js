@@ -235,20 +235,6 @@ function syncViewportSoon() {
   setTimeout(syncViewportHeight, 280);
 }
 
-function getTimeBackdropName(hour = new Date().getHours()) {
-  if (hour >= 5 && hour < 8) return "sunrise";
-  if (hour >= 8 && hour < 17) return "day";
-  if (hour >= 17 && hour < 20) return "sunset";
-  return "night";
-}
-
-function applyTimeBackdrop() {
-  const backdrop = getTimeBackdropName();
-
-  document.body.classList.remove("time-sunrise", "time-day", "time-sunset", "time-night");
-  document.body.classList.add(`time-${backdrop}`);
-}
-
 function api(path, options = {}) {
   return fetch(path, {
     ...options,
@@ -2296,12 +2282,10 @@ function clearAttachment() {
 
 renderEmojiPanel();
 setEmojiTab("emoji");
-applyTimeBackdrop();
 syncViewportHeight();
 window.addEventListener("resize", syncViewportSoon);
 window.visualViewport?.addEventListener("resize", syncViewportSoon);
 window.visualViewport?.addEventListener("scroll", syncViewportSoon);
-setInterval(applyTimeBackdrop, 10 * 60 * 1000);
 boot();
 
 if ("serviceWorker" in navigator) {
