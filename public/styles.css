@@ -1502,28 +1502,23 @@ button:hover {
   }
 
   body.composer-keyboard-open .composer {
-    position: fixed;
-    right: 0;
-    bottom: env(safe-area-inset-bottom);
-    left: 0;
+    position: relative;
     z-index: 30;
     background: #fff;
     box-shadow: 0 -10px 24px rgba(15, 23, 42, 0.08);
-    transform: translateY(calc(-1 * var(--composer-lift, 0px)));
+  }
+
+  body.composer-keyboard-open .chat-panel {
+    transform: translateY(-250px);
+  }
+
+  body.ios-composer-keyboard-open .chat-panel {
+    transform: translateY(-310px);
   }
 
   body.composer-keyboard-open .messages {
-    padding-bottom: calc(var(--composer-height, 68px) + var(--composer-lift, 0px) + 8px);
-    scroll-padding-bottom: calc(var(--composer-height, 68px) + var(--composer-lift, 0px) + 8px);
-  }
-
-  body.ios-composer-keyboard-open .composer {
-    transform: translateY(-270px);
-  }
-
-  body.ios-composer-keyboard-open .messages {
-    padding-bottom: calc(var(--composer-height, 68px) + 278px);
-    scroll-padding-bottom: calc(var(--composer-height, 68px) + 278px);
+    padding-bottom: 16px;
+    scroll-padding-bottom: 16px;
   }
 
   body.food-keyboard-open .food-panel {
