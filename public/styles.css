@@ -1556,12 +1556,14 @@ button:hover {
   .header-upcoming-stack {
     grid-area: upcoming;
     align-self: start;
+    justify-items: end;
+    transform: translateX(-8px);
   }
 
   .upcoming-mini-button {
-    width: 46px;
+    width: 60px;
     height: 25px;
-    overflow: hidden;
+    overflow: visible;
     font-size: 8px;
     text-align: right;
   }
