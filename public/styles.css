@@ -1029,6 +1029,24 @@ button:hover {
     overflow-y: auto;
   }
 
+  body.food-name-keyboard-open .food-form {
+    grid-template-columns: 1fr;
+  }
+
+  body.food-name-keyboard-open #foodDateInput,
+  body.food-name-keyboard-open .food-form button[type="submit"] {
+    display: none;
+  }
+
+  body.food-name-keyboard-open #foodNameInput {
+    height: 44px;
+  }
+
+  body.food-name-keyboard-open .food-list {
+    max-height: 32dvh;
+    overflow-y: auto;
+  }
+
   .composer button,
   .attach-button,
   .call-button,

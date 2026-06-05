@@ -135,6 +135,7 @@ function syncViewportHeight() {
     foodPanel &&
     !foodPanel.classList.contains("hidden") &&
     (activeElement === foodDateInput || activeElement === foodNameInput);
+  const foodNameFocused = foodFocused && activeElement === foodNameInput;
   const composerHeight = Math.ceil(messageForm?.getBoundingClientRect().height || 68);
 
   document.documentElement.style.setProperty("--app-height", `${height}px`);
@@ -144,6 +145,7 @@ function syncViewportHeight() {
   document.body.classList.toggle("keyboard-open", composerFocused || foodFocused);
   document.body.classList.toggle("composer-keyboard-open", composerFocused);
   document.body.classList.toggle("food-keyboard-open", foodFocused);
+  document.body.classList.toggle("food-name-keyboard-open", foodNameFocused);
 }
 
 function syncViewportSoon() {
