@@ -80,10 +80,12 @@ const closeOtherFeatureButton = document.querySelector("#closeOtherFeatureButton
 const upcomingScheduleButton = document.querySelector("#upcomingScheduleButton");
 const upcomingSchedulePanel = document.querySelector("#upcomingSchedulePanel");
 const upcomingScheduleList = document.querySelector("#upcomingScheduleList");
+const upcomingScheduleTicker = document.querySelector("#upcomingScheduleTicker");
 const closeUpcomingScheduleButton = document.querySelector("#closeUpcomingScheduleButton");
 const upcomingFestivalButton = document.querySelector("#upcomingFestivalButton");
 const upcomingFestivalPanel = document.querySelector("#upcomingFestivalPanel");
 const upcomingFestivalList = document.querySelector("#upcomingFestivalList");
+const upcomingFestivalTicker = document.querySelector("#upcomingFestivalTicker");
 const closeUpcomingFestivalButton = document.querySelector("#closeUpcomingFestivalButton");
 const importantDaysButton = document.querySelector("#importantDaysButton");
 const importantDaysPanel = document.querySelector("#importantDaysPanel");
@@ -1535,11 +1537,69 @@ async function openUpcomingSchedulePanel() {
     }
 
     state.scheduleItems = data.items || [];
+    renderUpcomingScheduleTicker();
     renderUpcomingSchedule();
   } catch (error) {
     if (upcomingScheduleList) {
       upcomingScheduleList.textContent = error.message;
     }
+  }
+}
+
+async function loadUpcomingSummaries() {
+  await Promise.allSettled([loadUpcomingScheduleTicker(), loadUpcomingFestivalTicker()]);
+}
+
+async function loadUpcomingScheduleTicker() {
+  if (!upcomingScheduleTicker) {
+    return;
+  }
+
+  try {
+    const response = await api("/api/schedule-items");
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "行程加载失败。");
+    }
+
+    state.scheduleItems = data.items || [];
+    renderUpcomingScheduleTicker();
+  } catch {
+    upcomingScheduleTicker.textContent = "暂无行程";
+  }
+}
+
+function renderUpcomingScheduleTicker() {
+  if (!upcomingScheduleTicker) {
+    return;
+  }
+
+  const today = todayInputValue();
+  const nearestDate = [...new Set(state.scheduleItems.map((item) => item.plannedDate))]
+    .filter((date) => date >= today)
+    .sort((left, right) => left.localeCompare(right))[0];
+  const items = state.scheduleItems.filter((item) => item.plannedDate === nearestDate);
+  upcomingScheduleTicker.textContent = items.length ? items.map((item) => item.content).join(" · ") : "暂无行程";
+}
+
+async function loadUpcomingFestivalTicker() {
+  if (!upcomingFestivalTicker) {
+    return;
+  }
+
+  try {
+    const response = await api("/api/upcoming-festival");
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "节日加载失败。");
+    }
+
+    const names = data.festival?.festivals?.map((festival) => festival.name).filter(Boolean) || [];
+    upcomingFestivalTicker.textContent = names.length ? names.join(" · ") : "暂无节日";
+  } catch {
+    upcomingFestivalTicker.textContent = "暂无节日";
   }
 }
 
@@ -1762,11 +1822,13 @@ function upsertScheduleItem(item) {
       : left.plannedDate.localeCompare(right.plannedDate)
   );
   renderScheduleItems();
+  renderUpcomingScheduleTicker();
 }
 
 function removeScheduleItem({ id }) {
   state.scheduleItems = state.scheduleItems.filter((item) => String(item.id) !== String(id));
   renderScheduleItems();
+  renderUpcomingScheduleTicker();
 }
 
 function renderTodayInfo(today) {
@@ -2612,6 +2674,7 @@ async function boot() {
     state.user = data.user;
     showChat();
     await loadTodayInfo();
+    await loadUpcomingSummaries();
     await loadMessages();
     connectSocket();
   } catch {
@@ -2646,6 +2709,7 @@ loginForm.addEventListener("submit", async (event) => {
   loginForm.reset();
   showChat();
   await loadTodayInfo();
+  await loadUpcomingSummaries();
   await loadMessages();
   connectSocket();
 });

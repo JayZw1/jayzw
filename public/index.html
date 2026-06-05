@@ -47,8 +47,14 @@
                 <h1>碎碎念收件箱</h1>
               </div>
               <div class="header-upcoming-stack">
-                <button class="upcoming-mini-button" id="upcomingScheduleButton" type="button">即将到来的行程</button>
-                <button class="upcoming-mini-button" id="upcomingFestivalButton" type="button">即将到来的节日</button>
+                <div class="upcoming-mini-slot">
+                  <button class="upcoming-mini-button" id="upcomingScheduleButton" type="button">即将到来的行程</button>
+                  <div class="upcoming-marquee" aria-hidden="true"><span id="upcomingScheduleTicker">暂无行程</span></div>
+                </div>
+                <div class="upcoming-mini-slot">
+                  <button class="upcoming-mini-button" id="upcomingFestivalButton" type="button">即将到来的节日</button>
+                  <div class="upcoming-marquee" aria-hidden="true"><span id="upcomingFestivalTicker">暂无节日</span></div>
+                </div>
               </div>
               <div class="header-tool-stack header-feature-stack">
                 <button class="ghost other-feature-button" id="otherFeatureButton" type="button">其他功能</button>

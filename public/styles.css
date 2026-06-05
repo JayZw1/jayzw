@@ -229,7 +229,13 @@ button:hover {
 
 .header-upcoming-stack {
   display: grid;
-  gap: 4px;
+  gap: 2px;
+  min-width: 0;
+}
+
+.upcoming-mini-slot {
+  display: grid;
+  gap: 1px;
   min-width: 0;
 }
 
@@ -246,6 +252,32 @@ button:hover {
 
 .upcoming-mini-button:hover {
   color: var(--accent);
+}
+
+.upcoming-marquee {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--accent);
+  font-size: 9px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.upcoming-marquee span {
+  display: inline-block;
+  min-width: 100%;
+  padding-left: 100%;
+  animation: upcoming-marquee 8s linear infinite;
+}
+
+@keyframes upcoming-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
 }
 
 .food-button {
@@ -1557,15 +1589,20 @@ button:hover {
     grid-area: upcoming;
     align-self: start;
     justify-items: end;
-    transform: translateX(-8px);
+    transform: translateX(-16px);
   }
 
   .upcoming-mini-button {
     width: 60px;
-    height: 25px;
+    height: 14px;
     overflow: visible;
     font-size: 8px;
     text-align: right;
+  }
+
+  .upcoming-marquee {
+    width: 60px;
+    font-size: 8px;
   }
 
   .header-life-stack {
