@@ -70,6 +70,7 @@
               </div>
               <div class="header-status-row">
                 <p id="statusText">正在连接...</p>
+                <button class="ghost storage-button" id="storageButton" type="button">存储</button>
                 <button class="ghost message-search-button" id="messageSearchButton" type="button">聊天记录</button>
                 <div class="header-weather-stack">
                 <button class="today-badge" id="todayBadge" type="button" title="查看未来天气" hidden>
@@ -246,6 +247,16 @@
           </form>
           <div class="message-search-summary" id="messageSearchSummary">输入关键词查询聊天记录。</div>
           <div class="message-search-results" id="messageSearchResults"></div>
+        </div>
+      </div>
+
+      <div class="storage-panel hidden" id="storagePanel">
+        <div class="storage-card">
+          <div class="modal-title">
+            <h2>存储</h2>
+            <button class="ghost icon-control" id="closeStorageButton" type="button" title="关闭">×</button>
+          </div>
+          <div class="storage-list" id="storageList">正在计算...</div>
         </div>
       </div>
 

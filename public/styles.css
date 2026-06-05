@@ -787,6 +787,7 @@ button:hover {
 .important-days-panel,
 .diary-panel,
 .message-search-panel,
+.storage-panel,
 .other-feature-panel,
 .upcoming-schedule-panel,
 .upcoming-festival-panel,
@@ -806,6 +807,7 @@ button:hover {
 .important-days-card,
 .diary-card,
 .message-search-card,
+.storage-card,
 .other-feature-card,
 .upcoming-schedule-card,
 .upcoming-festival-card,
@@ -863,6 +865,7 @@ button:hover {
 .important-days-list,
 .diary-list,
 .message-search-results,
+.storage-list,
 .other-feature-list,
 .upcoming-schedule-list,
 .upcoming-festival-list,
@@ -1063,6 +1066,53 @@ button:hover {
   grid-template-rows: auto auto auto minmax(0, 1fr);
   max-height: calc(var(--app-height, 100dvh) - 36px);
   min-height: 0;
+}
+
+.storage-card {
+  width: min(100%, 420px);
+}
+
+.storage-list {
+  gap: 12px;
+}
+
+.storage-item {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f9fafb;
+  padding: 12px;
+}
+
+.storage-item-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.storage-item-head strong {
+  color: var(--text);
+}
+
+.storage-item-head span,
+.storage-item small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.storage-bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e5e7eb;
+}
+
+.storage-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
 }
 
 .password-change-card {
@@ -1630,6 +1680,11 @@ button:hover {
     grid-column: 1;
   }
 
+  .header-status-row .storage-button {
+    grid-column: 2;
+    justify-self: center;
+  }
+
   .header-status-row .message-search-button {
     grid-column: 3;
   }
@@ -1641,6 +1696,12 @@ button:hover {
   .message-search-button {
     width: 52px;
     height: 22px;
+    font-size: 10px;
+  }
+
+  .storage-button {
+    width: 40px;
+    height: 20px;
     font-size: 10px;
   }
 
@@ -1713,6 +1774,12 @@ button:hover {
   .header-status-row .message-search-button {
     width: 46px;
     height: 22px;
+    font-size: 10px;
+  }
+
+  .header-status-row .storage-button {
+    width: 40px;
+    height: 20px;
     font-size: 10px;
   }
 

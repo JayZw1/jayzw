@@ -73,6 +73,10 @@ const messageSearchInput = document.querySelector("#messageSearchInput");
 const messageSearchSummary = document.querySelector("#messageSearchSummary");
 const messageSearchResults = document.querySelector("#messageSearchResults");
 const closeMessageSearchButton = document.querySelector("#closeMessageSearchButton");
+const storageButton = document.querySelector("#storageButton");
+const storagePanel = document.querySelector("#storagePanel");
+const storageList = document.querySelector("#storageList");
+const closeStorageButton = document.querySelector("#closeStorageButton");
 const otherFeatureButton = document.querySelector("#otherFeatureButton");
 const otherFeaturePanel = document.querySelector("#otherFeaturePanel");
 const otherFeatureList = document.querySelector("#otherFeatureList");
@@ -819,6 +823,10 @@ function closeMessageSearchPanel() {
   messageSearchPanel?.classList.add("hidden");
 }
 
+function closeStoragePanel() {
+  storagePanel?.classList.add("hidden");
+}
+
 function closeOtherFeaturePanel() {
   otherFeaturePanel?.classList.add("hidden");
 }
@@ -1188,6 +1196,61 @@ function openOtherFeaturePanel() {
 function openMessageSearchPanel() {
   messageSearchPanel?.classList.remove("hidden");
   messageSearchInput?.focus();
+}
+
+async function openStoragePanel() {
+  storagePanel?.classList.remove("hidden");
+  if (storageList) {
+    storageList.textContent = "正在计算...";
+  }
+
+  try {
+    const response = await api("/api/storage-usage");
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "存储信息加载失败。");
+    }
+
+    renderStorageUsage(data);
+  } catch (error) {
+    if (storageList) {
+      storageList.textContent = error.message;
+    }
+  }
+}
+
+function renderStorageUsage(data) {
+  if (!storageList) {
+    return;
+  }
+
+  storageList.innerHTML = "";
+  storageList.append(
+    renderStorageRow("文字", data.text?.label || "0 B / 500 MB", data.text),
+    renderStorageRow("附件", data.attachment?.label || "0 B / 10 GB", data.attachment, data.attachment?.mode)
+  );
+}
+
+function renderStorageRow(title, label, values, meta = "") {
+  const row = document.createElement("article");
+  row.className = "storage-item";
+  const used = Number(values?.used || 0);
+  const total = Number(values?.total || 1);
+  const percent = Math.max(0, Math.min(100, (used / total) * 100));
+  row.innerHTML = `
+    <div class="storage-item-head">
+      <strong></strong>
+      <span></span>
+    </div>
+    <div class="storage-bar"><i></i></div>
+    <small></small>
+  `;
+  row.querySelector("strong").textContent = title;
+  row.querySelector("span").textContent = label;
+  row.querySelector("i").style.width = `${percent}%`;
+  row.querySelector("small").textContent = meta || `${percent.toFixed(1)}%`;
+  return row;
 }
 
 function getSearchPreview(message) {
@@ -2816,6 +2879,9 @@ document.addEventListener("click", (event) => {
   ) {
     closeMessageSearchPanel();
   }
+  if (storagePanel && !storagePanel.classList.contains("hidden") && event.target === storagePanel) {
+    closeStoragePanel();
+  }
   if (
     passwordChangePanel &&
     !passwordChangePanel.classList.contains("hidden") &&
@@ -2900,6 +2966,8 @@ endCallButton?.addEventListener("click", () => endCall(true));
 messageSearchButton?.addEventListener("click", openMessageSearchPanel);
 messageSearchForm?.addEventListener("submit", searchMessages);
 closeMessageSearchButton?.addEventListener("click", closeMessageSearchPanel);
+storageButton?.addEventListener("click", openStoragePanel);
+closeStorageButton?.addEventListener("click", closeStoragePanel);
 otherFeatureButton?.addEventListener("click", openOtherFeaturePanel);
 closeOtherFeatureButton?.addEventListener("click", closeOtherFeaturePanel);
 upcomingScheduleButton?.addEventListener("click", openUpcomingSchedulePanel);

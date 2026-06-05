@@ -11,6 +11,7 @@ const { Lunar, Solar } = require("lunar-javascript");
 const { Server } = require("socket.io");
 const webpush = require("web-push");
 const { createStore } = require("./db");
+const { createAttachmentStorage } = require("./storage");
 
 const PORT = Number(process.env.PORT || 8080);
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
@@ -100,6 +101,8 @@ const users = [
 }));
 
 const store = createStore();
+const attachmentStorage = createAttachmentStorage();
+const attachmentPublicOrigin = getOrigin(process.env.R2_PUBLIC_BASE_URL);
 
 const app = express();
 const server = http.createServer(app);
@@ -119,8 +122,8 @@ app.use(
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:"],
-        mediaSrc: ["'self'", "data:", "blob:"],
+        imgSrc: ["'self'", "data:", ...(attachmentPublicOrigin ? [attachmentPublicOrigin] : [])],
+        mediaSrc: ["'self'", "data:", "blob:", ...(attachmentPublicOrigin ? [attachmentPublicOrigin] : [])],
         connectSrc: ["'self'", "https://api.open-meteo.com", "ws:", "wss:"],
       },
     },
@@ -311,6 +314,60 @@ app.get("/api/messages/:id", requireAuth, async (req, res) => {
     res.json({ message });
   } catch {
     res.status(500).json({ error: "消息加载失败。" });
+  }
+});
+
+app.get("/api/storage-usage", requireAuth, async (req, res) => {
+  try {
+    const stats = await store.getStorageStats();
+    const textBytes = Number(stats.textBytes || 0);
+    const externalAttachmentBytes = Number(stats.externalAttachmentBytes || 0);
+    const databaseAttachmentBytes = Number(stats.databaseAttachmentBytes || 0);
+    res.json({
+      text: {
+        used: textBytes,
+        total: 500 * 1024 * 1024,
+        label: `${formatBytes(textBytes)} / 500 MB`,
+      },
+      attachment: {
+        used: attachmentStorage.enabled ? externalAttachmentBytes : databaseAttachmentBytes,
+        total: attachmentStorage.totalBytes,
+        label: `${formatBytes(attachmentStorage.enabled ? externalAttachmentBytes : databaseAttachmentBytes)} / ${formatBytes(
+          attachmentStorage.totalBytes
+        )}`,
+        mode: attachmentStorage.enabled ? "Cloudflare R2" : "数据库附件",
+      },
+    });
+  } catch {
+    res.status(500).json({ error: "存储信息加载失败。" });
+  }
+});
+
+app.post("/api/storage-migrate", requireAuth, async (req, res) => {
+  const password = String(req.body?.password || "");
+
+  if (password !== CLEAR_HISTORY_PASSWORD) {
+    return res.status(403).json({ error: "确认密码不正确。" });
+  }
+
+  if (!attachmentStorage.enabled) {
+    return res.status(400).json({ error: "请先配置 Cloudflare R2 环境变量。" });
+  }
+
+  try {
+    const rows = await store.listDatabaseAttachments(30);
+    let migrated = 0;
+
+    for (const row of rows) {
+      const attachment = cleanAttachment(row);
+      const saved = await prepareAttachmentForStorage(attachment);
+      await store.updateAttachmentStorage(row.id, saved);
+      migrated += 1;
+    }
+
+    res.json({ migrated, remainingHint: rows.length >= 30 ? "还有附件未迁移，可再次执行。" : "迁移完成。" });
+  } catch {
+    res.status(500).json({ error: "迁移失败，请稍后再试。" });
   }
 });
 
@@ -532,6 +589,7 @@ app.post("/api/messages", requireAuth, async (req, res) => {
   }
 
   try {
+    attachment = await prepareAttachmentForStorage(attachment);
     const message = await store.createMessage(req.user, body, attachment, quote);
     io.emit("message:new", message);
     sendPushToOthers(req.user.id, {
@@ -625,7 +683,31 @@ function cleanAttachment(rawAttachment) {
     throw new Error("附件不能超过 5MB。");
   }
 
-  return { name, type, data };
+  return { name, type, data, buffer: Buffer.from(match[2], "base64"), size };
+}
+
+async function prepareAttachmentForStorage(attachment) {
+  if (!attachment) {
+    return null;
+  }
+
+  return attachmentStorage.saveAttachment(attachment);
+}
+
+function formatBytes(bytes) {
+  const value = Number(bytes || 0);
+  if (value >= 1024 * 1024 * 1024) return `${(value / 1024 / 1024 / 1024).toFixed(2)} GB`;
+  if (value >= 1024 * 1024) return `${(value / 1024 / 1024).toFixed(2)} MB`;
+  if (value >= 1024) return `${(value / 1024).toFixed(2)} KB`;
+  return `${value} B`;
+}
+
+function getOrigin(value) {
+  try {
+    return value ? new URL(value).origin : "";
+  } catch {
+    return "";
+  }
 }
 
 function cleanQuote(rawQuote) {
@@ -925,6 +1007,7 @@ io.on("connection", (socket) => {
     }
 
     try {
+      attachment = await prepareAttachmentForStorage(attachment);
       const message = await store.createMessage(socket.user, body, attachment, quote);
       io.emit("message:new", message);
       sendPushToOthers(socket.user.id, {

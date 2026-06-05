@@ -18,6 +18,8 @@ function createSqliteStore(databasePath) {
       attachment_name TEXT,
       attachment_type TEXT,
       attachment_data TEXT,
+      attachment_storage_key TEXT,
+      attachment_size INTEGER,
       quote_message_id TEXT,
       quote_sender_name TEXT,
       quote_body TEXT,
@@ -85,6 +87,8 @@ function createSqliteStore(databasePath) {
     "ALTER TABLE messages ADD COLUMN attachment_name TEXT",
     "ALTER TABLE messages ADD COLUMN attachment_type TEXT",
     "ALTER TABLE messages ADD COLUMN attachment_data TEXT",
+    "ALTER TABLE messages ADD COLUMN attachment_storage_key TEXT",
+    "ALTER TABLE messages ADD COLUMN attachment_size INTEGER",
     "ALTER TABLE messages ADD COLUMN quote_message_id TEXT",
     "ALTER TABLE messages ADD COLUMN quote_sender_name TEXT",
     "ALTER TABLE messages ADD COLUMN quote_body TEXT",
@@ -103,6 +107,8 @@ function createSqliteStore(databasePath) {
            attachment_name AS attachmentName,
            attachment_type AS attachmentType,
            attachment_data AS attachmentData,
+           attachment_storage_key AS attachmentStorageKey,
+           attachment_size AS attachmentSize,
            quote_message_id AS quoteMessageId,
            quote_sender_name AS quoteSenderName,
            quote_body AS quoteBody,
@@ -115,10 +121,10 @@ function createSqliteStore(databasePath) {
   `);
   const insertMessage = db.prepare(`
     INSERT INTO messages (
-      sender_id, sender_name, body, attachment_name, attachment_type, attachment_data,
+      sender_id, sender_name, body, attachment_name, attachment_type, attachment_data, attachment_storage_key, attachment_size,
       quote_message_id, quote_sender_name, quote_body
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const selectMessage = db.prepare(`
     SELECT id,
@@ -128,6 +134,8 @@ function createSqliteStore(databasePath) {
            attachment_name AS attachmentName,
            attachment_type AS attachmentType,
            attachment_data AS attachmentData,
+           attachment_storage_key AS attachmentStorageKey,
+           attachment_size AS attachmentSize,
            quote_message_id AS quoteMessageId,
            quote_sender_name AS quoteSenderName,
            quote_body AS quoteBody,
@@ -144,6 +152,8 @@ function createSqliteStore(databasePath) {
            attachment_name AS attachmentName,
            attachment_type AS attachmentType,
            attachment_data AS attachmentData,
+           attachment_storage_key AS attachmentStorageKey,
+           attachment_size AS attachmentSize,
            quote_message_id AS quoteMessageId,
            quote_sender_name AS quoteSenderName,
            quote_body AS quoteBody,
@@ -161,6 +171,8 @@ function createSqliteStore(databasePath) {
            attachment_name AS attachmentName,
            attachment_type AS attachmentType,
            NULL AS attachmentData,
+           attachment_storage_key AS attachmentStorageKey,
+           attachment_size AS attachmentSize,
            quote_message_id AS quoteMessageId,
            quote_sender_name AS quoteSenderName,
            quote_body AS quoteBody,
@@ -180,7 +192,7 @@ function createSqliteStore(databasePath) {
   `);
   const recallMessage = db.prepare(`
     UPDATE messages
-    SET recalled_at = datetime('now'), body = '', attachment_name = NULL, attachment_type = NULL, attachment_data = NULL
+    SET recalled_at = datetime('now'), body = '', attachment_name = NULL, attachment_type = NULL, attachment_data = NULL, attachment_storage_key = NULL, attachment_size = NULL
     WHERE id = ? AND sender_id = ? AND recalled_at IS NULL
   `);
   const deleteMessage = db.prepare(`
@@ -309,6 +321,31 @@ function createSqliteStore(databasePath) {
     WHERE user_id <> ?
   `);
   const deletePushSubscription = db.prepare("DELETE FROM push_subscriptions WHERE endpoint = ?");
+  const selectStorageStats = db.prepare(`
+    SELECT COALESCE(SUM(LENGTH(COALESCE(body, '')) + LENGTH(COALESCE(quote_body, ''))), 0) AS textBytes,
+           COALESCE(SUM(COALESCE(attachment_size, 0)), 0) AS externalAttachmentBytes,
+           COALESCE(SUM(CASE
+             WHEN attachment_data LIKE 'data:%;base64,%' THEN LENGTH(substr(attachment_data, instr(attachment_data, ',') + 1)) * 3 / 4
+             ELSE 0
+           END), 0) AS databaseAttachmentBytes
+    FROM messages
+  `);
+  const selectDatabaseAttachments = db.prepare(`
+    SELECT id,
+           attachment_name AS name,
+           attachment_type AS type,
+           attachment_data AS data
+    FROM messages
+    WHERE attachment_data LIKE 'data:%;base64,%'
+    LIMIT ?
+  `);
+  const updateAttachmentStorage = db.prepare(`
+    UPDATE messages
+    SET attachment_data = ?,
+        attachment_storage_key = ?,
+        attachment_size = ?
+    WHERE id = ?
+  `);
 
   return {
     async init() {},
@@ -330,6 +367,8 @@ function createSqliteStore(databasePath) {
         attachment?.name || null,
         attachment?.type || null,
         attachment?.data || null,
+        attachment?.storageKey || null,
+        attachment?.size || null,
         quote?.messageId || null,
         quote?.senderName || null,
         quote?.body || null
@@ -346,6 +385,15 @@ function createSqliteStore(databasePath) {
     },
     async clearAllMessages() {
       clearAllMessages();
+    },
+    async getStorageStats() {
+      return selectStorageStats.get();
+    },
+    async listDatabaseAttachments(limit = 20) {
+      return selectDatabaseAttachments.all(limit);
+    },
+    async updateAttachmentStorage(id, attachment) {
+      updateAttachmentStorage.run(attachment.data, attachment.storageKey || null, attachment.size || null, id);
     },
     async getUserPasswordHash(userId) {
       return selectUserPasswordHash.get(userId)?.passwordHash || null;
@@ -433,6 +481,8 @@ function createPostgresStore(databaseUrl) {
           attachment_name TEXT,
           attachment_type TEXT,
           attachment_data TEXT,
+          attachment_storage_key TEXT,
+          attachment_size BIGINT,
           quote_message_id TEXT,
           quote_sender_name TEXT,
           quote_body TEXT,
@@ -501,6 +551,8 @@ function createPostgresStore(databaseUrl) {
           ADD COLUMN IF NOT EXISTS attachment_name TEXT,
           ADD COLUMN IF NOT EXISTS attachment_type TEXT,
           ADD COLUMN IF NOT EXISTS attachment_data TEXT,
+          ADD COLUMN IF NOT EXISTS attachment_storage_key TEXT,
+          ADD COLUMN IF NOT EXISTS attachment_size BIGINT,
           ADD COLUMN IF NOT EXISTS quote_message_id TEXT,
           ADD COLUMN IF NOT EXISTS quote_sender_name TEXT,
           ADD COLUMN IF NOT EXISTS quote_body TEXT,
@@ -516,6 +568,8 @@ function createPostgresStore(databaseUrl) {
                 attachment_name AS "attachmentName",
                 attachment_type AS "attachmentType",
                 attachment_data AS "attachmentData",
+                attachment_storage_key AS "attachmentStorageKey",
+                attachment_size AS "attachmentSize",
                 quote_message_id AS "quoteMessageId",
                 quote_sender_name AS "quoteSenderName",
                 quote_body AS "quoteBody",
@@ -540,6 +594,8 @@ function createPostgresStore(databaseUrl) {
                 attachment_name AS "attachmentName",
                 attachment_type AS "attachmentType",
                 attachment_data AS "attachmentData",
+                attachment_storage_key AS "attachmentStorageKey",
+                attachment_size AS "attachmentSize",
                 quote_message_id AS "quoteMessageId",
                 quote_sender_name AS "quoteSenderName",
                 quote_body AS "quoteBody",
@@ -563,6 +619,8 @@ function createPostgresStore(databaseUrl) {
                 attachment_name AS "attachmentName",
                 attachment_type AS "attachmentType",
                 NULL AS "attachmentData",
+                attachment_storage_key AS "attachmentStorageKey",
+                attachment_size AS "attachmentSize",
                 quote_message_id AS "quoteMessageId",
                 quote_sender_name AS "quoteSenderName",
                 quote_body AS "quoteBody",
@@ -588,10 +646,10 @@ function createPostgresStore(databaseUrl) {
     async createMessage(user, body, attachment, quote) {
       const result = await pool.query(
         `INSERT INTO messages (
-           sender_id, sender_name, body, attachment_name, attachment_type, attachment_data,
+           sender_id, sender_name, body, attachment_name, attachment_type, attachment_data, attachment_storage_key, attachment_size,
            quote_message_id, quote_sender_name, quote_body
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          RETURNING id::text AS "id",
                    sender_id AS "senderId",
                    sender_name AS "senderName",
@@ -599,6 +657,8 @@ function createPostgresStore(databaseUrl) {
                    attachment_name AS "attachmentName",
                    attachment_type AS "attachmentType",
                    attachment_data AS "attachmentData",
+                   attachment_storage_key AS "attachmentStorageKey",
+                   attachment_size AS "attachmentSize",
                    quote_message_id AS "quoteMessageId",
                    quote_sender_name AS "quoteSenderName",
                    quote_body AS "quoteBody",
@@ -611,6 +671,8 @@ function createPostgresStore(databaseUrl) {
           attachment?.name || null,
           attachment?.type || null,
           attachment?.data || null,
+          attachment?.storageKey || null,
+          attachment?.size || null,
           quote?.messageId || null,
           quote?.senderName || null,
           quote?.body || null,
@@ -625,7 +687,9 @@ function createPostgresStore(databaseUrl) {
              body = '',
              attachment_name = NULL,
              attachment_type = NULL,
-             attachment_data = NULL
+             attachment_data = NULL,
+             attachment_storage_key = NULL,
+             attachment_size = NULL
          WHERE id = $1 AND sender_id = $2 AND recalled_at IS NULL
          RETURNING id::text AS "id",
                    sender_id AS "senderId",
@@ -634,6 +698,8 @@ function createPostgresStore(databaseUrl) {
                    attachment_name AS "attachmentName",
                    attachment_type AS "attachmentType",
                    attachment_data AS "attachmentData",
+                   attachment_storage_key AS "attachmentStorageKey",
+                   attachment_size AS "attachmentSize",
                    quote_message_id AS "quoteMessageId",
                    quote_sender_name AS "quoteSenderName",
                    quote_body AS "quoteBody",
@@ -655,6 +721,41 @@ function createPostgresStore(databaseUrl) {
     async clearAllMessages() {
       await pool.query("DELETE FROM message_deletions");
       await pool.query("DELETE FROM messages");
+    },
+    async getStorageStats() {
+      const result = await pool.query(`
+        SELECT COALESCE(SUM(LENGTH(COALESCE(body, '')) + LENGTH(COALESCE(quote_body, ''))), 0)::bigint AS "textBytes",
+               COALESCE(SUM(COALESCE(attachment_size, 0)), 0)::bigint AS "externalAttachmentBytes",
+               COALESCE(SUM(CASE
+                 WHEN attachment_data LIKE 'data:%;base64,%' THEN LENGTH(substring(attachment_data from position(',' in attachment_data) + 1)) * 3 / 4
+                 ELSE 0
+               END), 0)::bigint AS "databaseAttachmentBytes"
+        FROM messages
+      `);
+      return result.rows[0] || {};
+    },
+    async listDatabaseAttachments(limit = 20) {
+      const result = await pool.query(
+        `SELECT id::text AS id,
+                attachment_name AS name,
+                attachment_type AS type,
+                attachment_data AS data
+         FROM messages
+         WHERE attachment_data LIKE 'data:%;base64,%'
+         LIMIT $1`,
+        [limit]
+      );
+      return result.rows;
+    },
+    async updateAttachmentStorage(id, attachment) {
+      await pool.query(
+        `UPDATE messages
+         SET attachment_data = $1,
+             attachment_storage_key = $2,
+             attachment_size = $3
+         WHERE id = $4`,
+        [attachment.data, attachment.storageKey || null, attachment.size || null, id]
+      );
     },
     async getUserPasswordHash(userId) {
       const result = await pool.query(
