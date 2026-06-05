@@ -435,7 +435,7 @@ function renderAttachment(message, bubble) {
 
   const isImage = message.attachmentType?.startsWith("image/");
   const isVideo = message.attachmentType?.startsWith("video/");
-  const attachmentUrl = `/api/messages/${encodeURIComponent(message.id)}/attachment`;
+  const attachmentUrl = getAttachmentUrl(message);
   const link = document.createElement("a");
   link.className = "attachment";
   link.href = attachmentUrl;
@@ -478,6 +478,11 @@ function renderAttachment(message, bubble) {
   }
 
   bubble.append(link);
+}
+
+function getAttachmentUrl(message) {
+  const tokenQuery = state.token ? `?token=${encodeURIComponent(state.token)}` : "";
+  return `/api/messages/${encodeURIComponent(message.id)}/attachment${tokenQuery}`;
 }
 
 function openAttachmentViewer(message, url) {

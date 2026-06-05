@@ -202,7 +202,7 @@ async function sendPushToOthers(senderId, payload) {
 }
 
 function requireAuth(req, res, next) {
-  const token = req.headers.authorization?.replace(/^Bearer\s+/i, "");
+  const token = req.headers.authorization?.replace(/^Bearer\s+/i, "") || req.query.token;
   const user = token ? verifyToken(token) : null;
 
   if (!user) {
