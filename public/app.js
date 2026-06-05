@@ -16,6 +16,9 @@ const state = {
   diaryVisibleMonth: todayInputValue().slice(0, 7),
 };
 
+const DIARY_MIN_DATE = "2025-01-01";
+const DIARY_MIN_MONTH = DIARY_MIN_DATE.slice(0, 7);
+
 const loginPanel = document.querySelector("#loginPanel");
 const chatPanel = document.querySelector("#chatPanel");
 const loginForm = document.querySelector("#loginForm");
@@ -859,7 +862,14 @@ function compareYmd(left, right) {
 function clampDiaryMonth(ym) {
   const today = todayInputValue();
   const currentMonth = today.slice(0, 7);
-  return String(ym || currentMonth) > currentMonth ? currentMonth : String(ym || currentMonth);
+  const targetMonth = String(ym || currentMonth);
+  if (targetMonth > currentMonth) {
+    return currentMonth;
+  }
+  if (targetMonth < DIARY_MIN_MONTH) {
+    return DIARY_MIN_MONTH;
+  }
+  return targetMonth;
 }
 
 function getDiaryYearRange() {
@@ -867,9 +877,9 @@ function getDiaryYearRange() {
   const years = state.diaryEntries
     .map((entry) => Number(String(entry.entryDate || "").slice(0, 4)))
     .filter(Boolean);
-  years.push(currentYear - 1, currentYear);
+  years.push(2025, currentYear - 1, currentYear);
   return {
-    start: Math.min(...years),
+    start: Math.max(Math.min(...years), 2025),
     end: Math.min(Math.max(...years), currentYear),
   };
 }
@@ -882,6 +892,10 @@ function syncDiarySelectedDateToMonth() {
   const daysInMonth = new Date(year, month, 0).getDate();
   const day = String(Math.min(currentDay, daysInMonth)).padStart(2, "0");
   state.diarySelectedDate = `${year}-${String(month).padStart(2, "0")}-${day}`;
+  if (compareYmd(state.diarySelectedDate, DIARY_MIN_DATE) < 0) {
+    state.diarySelectedDate = DIARY_MIN_DATE;
+    state.diaryVisibleMonth = DIARY_MIN_MONTH;
+  }
   if (compareYmd(state.diarySelectedDate, today) > 0) {
     state.diarySelectedDate = today;
     state.diaryVisibleMonth = today.slice(0, 7);
@@ -911,6 +925,9 @@ async function openDiaryPanel() {
   if (compareYmd(state.diarySelectedDate, todayInputValue()) > 0) {
     state.diarySelectedDate = todayInputValue();
   }
+  if (compareYmd(state.diarySelectedDate, DIARY_MIN_DATE) < 0) {
+    state.diarySelectedDate = DIARY_MIN_DATE;
+  }
   state.diaryVisibleMonth = clampDiaryMonth(state.diarySelectedDate.slice(0, 7));
   diaryPanel?.classList.remove("hidden");
   await loadDiaryEntries();
@@ -924,7 +941,7 @@ async function loadDiaryEntries() {
   diaryList.textContent = "正在加载...";
 
   try {
-    const response = await api("/api/diary-entries?limit=800");
+    const response = await api("/api/diary-entries?limit=5000");
     const data = await response.json();
 
     if (!response.ok) {
@@ -981,6 +998,8 @@ function renderDiaryMonthPicker(year, month) {
   const today = parseYmd(todayInputValue());
   const currentYear = today.getFullYear();
   const currentMonth = today.getMonth() + 1;
+  const minYear = Number(DIARY_MIN_DATE.slice(0, 4));
+  const minMonth = Number(DIARY_MIN_DATE.slice(5, 7));
   const yearsMarkup = [];
   for (let targetYear = start; targetYear <= end; targetYear += 1) {
     yearsMarkup.push(`<option value="${targetYear}">${targetYear}年</option>`);
@@ -988,9 +1007,10 @@ function renderDiaryMonthPicker(year, month) {
   diaryYearSelect.innerHTML = yearsMarkup.join("");
   diaryYearSelect.value = String(year);
 
+  const startMonth = year === minYear ? minMonth : 1;
   const maxMonth = year === currentYear ? currentMonth : 12;
-  diaryMonthSelect.innerHTML = Array.from({ length: maxMonth }, (_, index) => {
-    const targetMonth = index + 1;
+  diaryMonthSelect.innerHTML = Array.from({ length: maxMonth - startMonth + 1 }, (_, index) => {
+    const targetMonth = startMonth + index;
     return `<option value="${targetMonth}">${targetMonth}月</option>`;
   }).join("");
   diaryMonthSelect.value = String(month);
@@ -1010,6 +1030,8 @@ function renderDiaryCalendar() {
   const today = todayInputValue();
 
   renderDiaryMonthPicker(year, month);
+  prevDiaryMonthButton.disabled = state.diaryVisibleMonth <= DIARY_MIN_MONTH;
+  nextDiaryMonthButton.disabled = state.diaryVisibleMonth >= today.slice(0, 7);
   diaryCalendarGrid.innerHTML = "";
 
   for (let i = 0; i < leadingEmptyDays; i += 1) {
@@ -1021,15 +1043,16 @@ function renderDiaryCalendar() {
   for (let day = 1; day <= daysInMonth; day += 1) {
     const date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     const isFutureDate = compareYmd(date, today) > 0;
+    const isBeforeMinDate = compareYmd(date, DIARY_MIN_DATE) < 0;
     const button = document.createElement("button");
     button.className = "diary-date-button";
     button.type = "button";
-    button.disabled = isFutureDate;
+    button.disabled = isFutureDate || isBeforeMinDate;
     button.classList.toggle("selected", date === state.diarySelectedDate);
-    button.classList.toggle("disabled", isFutureDate);
+    button.classList.toggle("disabled", isFutureDate || isBeforeMinDate);
     button.innerHTML = `<span>${day}</span>${diaryDates.has(date) ? "<small>日记</small>" : ""}`;
     button.addEventListener("click", () => {
-      if (isFutureDate) {
+      if (isFutureDate || isBeforeMinDate) {
         return;
       }
       state.diarySelectedDate = date;

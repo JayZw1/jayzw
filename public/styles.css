@@ -866,6 +866,12 @@ button:hover {
   font-size: 18px;
 }
 
+.diary-month-button:disabled {
+  cursor: not-allowed;
+  color: #cbd5e1;
+  background: #f3f4f6;
+}
+
 .diary-weekdays,
 .diary-calendar-grid {
   display: grid;

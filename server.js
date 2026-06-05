@@ -17,6 +17,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 const TOKEN_MAX_AGE = "30d";
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 const CLEAR_HISTORY_PASSWORD = process.env.CLEAR_HISTORY_PASSWORD || "zhangwei020216";
+const DIARY_MIN_DATE = "2025-01-01";
 const STICKER_API_URL =
   process.env.STICKER_API_URL ||
   "https://cn.apihz.cn/api/img/apihzbqb.php?id=88888888&key=88888888&type=2&words={query}&limit=8";
@@ -415,6 +416,10 @@ app.post("/api/diary-entries", requireAuth, async (req, res) => {
 
   if (entryDate > today) {
     return res.status(400).json({ error: "日记只能记录今天和过去的事情。" });
+  }
+
+  if (entryDate < DIARY_MIN_DATE) {
+    return res.status(400).json({ error: "日记最早只能记录到 2025年1月1日。" });
   }
 
   try {
