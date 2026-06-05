@@ -481,12 +481,18 @@ button:hover {
   color: var(--accent);
 }
 
-.attachment img {
+.attachment img,
+.attachment video {
   display: block;
   max-width: min(260px, 100%);
   max-height: 220px;
   border-radius: 8px;
   object-fit: contain;
+}
+
+.attachment video {
+  width: min(260px, 100%);
+  background: #000;
 }
 
 .attachment-file {
@@ -1137,13 +1143,25 @@ button:hover {
 
 .message-search-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 68px;
+  grid-template-columns: minmax(0, 1fr) 76px 68px;
   gap: 8px;
 }
 
 .message-search-form input,
+.message-search-form select,
 .message-search-form button {
   height: 40px;
+}
+
+.message-search-form select {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  padding: 0 8px;
 }
 
 .message-search-form button {
@@ -1986,6 +2004,8 @@ button:hover {
 
   .food-form input,
   .food-form button,
+  .message-search-form input,
+  .message-search-form select,
   .schedule-form input,
   .schedule-form button {
     width: 100%;

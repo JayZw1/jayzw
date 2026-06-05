@@ -70,6 +70,7 @@ const messageSearchButton = document.querySelector("#messageSearchButton");
 const messageSearchPanel = document.querySelector("#messageSearchPanel");
 const messageSearchForm = document.querySelector("#messageSearchForm");
 const messageSearchInput = document.querySelector("#messageSearchInput");
+const messageSearchType = document.querySelector("#messageSearchType");
 const messageSearchSummary = document.querySelector("#messageSearchSummary");
 const messageSearchResults = document.querySelector("#messageSearchResults");
 const closeMessageSearchButton = document.querySelector("#closeMessageSearchButton");
@@ -129,7 +130,7 @@ const remoteRelayAudio = document.querySelector("#remoteRelayAudio");
 const acceptCallButton = document.querySelector("#acceptCallButton");
 const declineCallButton = document.querySelector("#declineCallButton");
 const endCallButton = document.querySelector("#endCallButton");
-const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+const MAX_ATTACHMENT_BYTES = Number.POSITIVE_INFINITY;
 let currentSticker = null;
 let peerConnection = null;
 let localStream = null;
@@ -432,18 +433,32 @@ function renderAttachment(message, bubble) {
     return;
   }
 
+  const isImage = message.attachmentType?.startsWith("image/");
+  const isVideo = message.attachmentType?.startsWith("video/");
   const link = document.createElement("a");
   link.className = "attachment";
   link.href = message.attachmentData;
-  link.download = message.attachmentName || "attachment";
+  if (!isImage && !isVideo) {
+    link.download = message.attachmentName || "attachment";
+  }
   link.target = "_blank";
   link.rel = "noopener";
 
-  if (message.attachmentType?.startsWith("image/")) {
+  if (isImage) {
     const image = document.createElement("img");
     image.alt = message.attachmentName || "附件";
     image.src = message.attachmentData;
+    image.loading = "lazy";
     link.append(image);
+  } else if (isVideo) {
+    const video = document.createElement("video");
+    video.src = message.attachmentData;
+    video.controls = true;
+    video.preload = "metadata";
+    video.playsInline = true;
+    video.addEventListener("click", (event) => event.stopPropagation());
+    link.addEventListener("click", (event) => event.preventDefault());
+    link.append(video);
   } else {
     const label = document.createElement("span");
     label.className = "attachment-file";
@@ -1259,6 +1274,14 @@ function getSearchPreview(message) {
   }
 
   if (message.attachmentName) {
+    if (message.attachmentType?.startsWith("image/")) {
+      return `图片：${message.attachmentName}`;
+    }
+
+    if (message.attachmentType?.startsWith("video/")) {
+      return `视频：${message.attachmentName}`;
+    }
+
     return `附件：${message.attachmentName}`;
   }
 
@@ -1269,15 +1292,27 @@ function getSearchPreview(message) {
   return "这条消息没有文字内容";
 }
 
-function renderMessageSearchResults(messages, query) {
+function getSearchTypeLabel(type) {
+  return {
+    all: "全部",
+    text: "文字",
+    image: "图片",
+    video: "视频",
+    file: "附件",
+  }[type] || "全部";
+}
+
+function renderMessageSearchResults(messages, query, type) {
   if (!messageSearchResults || !messageSearchSummary) {
     return;
   }
 
   messageSearchResults.innerHTML = "";
+  const label = getSearchTypeLabel(type);
+  const scope = query ? `${label} · “${query}”` : label;
   messageSearchSummary.textContent = messages.length
-    ? `找到 ${messages.length} 条和“${query}”相关的记录`
-    : `没有找到和“${query}”相关的记录`;
+    ? `找到 ${messages.length} 条${scope}记录`
+    : `没有找到${scope}记录`;
 
   for (const message of messages) {
     const item = document.createElement("button");
@@ -1299,9 +1334,10 @@ function renderMessageSearchResults(messages, query) {
 async function searchMessages(event) {
   event.preventDefault();
   const query = messageSearchInput.value.trim();
+  const type = messageSearchType?.value || "all";
 
-  if (!query) {
-    messageSearchSummary.textContent = "输入关键词查询聊天记录。";
+  if (!query && (type === "all" || type === "text")) {
+    messageSearchSummary.textContent = "输入关键词查询聊天记录，或选择图片、视频、附件。";
     messageSearchResults.innerHTML = "";
     return;
   }
@@ -1310,14 +1346,14 @@ async function searchMessages(event) {
   messageSearchResults.innerHTML = "";
 
   try {
-    const response = await api(`/api/messages/search?q=${encodeURIComponent(query)}`);
+    const response = await api(`/api/messages/search?q=${encodeURIComponent(query)}&type=${encodeURIComponent(type)}`);
     const data = await response.json();
 
     if (!response.ok) {
       throw new Error(data.error || "查询失败。");
     }
 
-    renderMessageSearchResults(data.messages || [], query);
+    renderMessageSearchResults(data.messages || [], query, type);
   } catch (error) {
     messageSearchSummary.textContent = error.message;
   }
@@ -3042,8 +3078,8 @@ fileInput.addEventListener("change", async () => {
     return;
   }
 
-  if (file.size > MAX_ATTACHMENT_BYTES) {
-    statusText.textContent = "附件不能超过 5MB。";
+  if (Number.isFinite(MAX_ATTACHMENT_BYTES) && file.size > MAX_ATTACHMENT_BYTES) {
+    statusText.textContent = "附件太大了。";
     fileInput.value = "";
     return;
   }

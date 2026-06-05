@@ -163,33 +163,6 @@ function createSqliteStore(databasePath) {
     WHERE id = ?
       AND id NOT IN (SELECT message_id FROM message_deletions WHERE user_id = ?)
   `);
-  const searchMessages = db.prepare(`
-    SELECT id,
-           sender_id AS senderId,
-           sender_name AS senderName,
-           body,
-           attachment_name AS attachmentName,
-           attachment_type AS attachmentType,
-           NULL AS attachmentData,
-           attachment_storage_key AS attachmentStorageKey,
-           attachment_size AS attachmentSize,
-           quote_message_id AS quoteMessageId,
-           quote_sender_name AS quoteSenderName,
-           quote_body AS quoteBody,
-           recalled_at AS recalledAt,
-           created_at AS createdAt
-    FROM messages
-    WHERE recalled_at IS NULL
-      AND id NOT IN (SELECT message_id FROM message_deletions WHERE user_id = ?)
-      AND (
-        body LIKE ?
-        OR attachment_name LIKE ?
-        OR quote_body LIKE ?
-        OR sender_name LIKE ?
-      )
-    ORDER BY id DESC
-    LIMIT ?
-  `);
   const recallMessage = db.prepare(`
     UPDATE messages
     SET recalled_at = datetime('now'), body = '', attachment_name = NULL, attachment_type = NULL, attachment_data = NULL, attachment_storage_key = NULL, attachment_size = NULL
@@ -355,9 +328,51 @@ function createSqliteStore(databasePath) {
     async getMessage(userId, id) {
       return selectVisibleMessage.get(id, userId) || null;
     },
-    async searchMessages(userId, query, limit) {
-      const pattern = `%${query}%`;
-      return searchMessages.all(userId, pattern, pattern, pattern, pattern, limit);
+    async searchMessages(userId, query, limit, type = "all") {
+      const conditions = [
+        "recalled_at IS NULL",
+        "id NOT IN (SELECT message_id FROM message_deletions WHERE user_id = ?)",
+      ];
+      const params = [userId];
+
+      if (type === "image") {
+        conditions.push("attachment_type LIKE 'image/%'");
+      } else if (type === "video") {
+        conditions.push("attachment_type LIKE 'video/%'");
+      } else if (type === "file") {
+        conditions.push("attachment_name IS NOT NULL AND (attachment_type IS NULL OR (attachment_type NOT LIKE 'image/%' AND attachment_type NOT LIKE 'video/%'))");
+      } else if (type === "text") {
+        conditions.push("body <> ''");
+      }
+
+      if (query) {
+        const pattern = `%${query}%`;
+        conditions.push("(body LIKE ? OR attachment_name LIKE ? OR quote_body LIKE ? OR sender_name LIKE ?)");
+        params.push(pattern, pattern, pattern, pattern);
+      }
+
+      params.push(limit);
+      const sql = `
+        SELECT id,
+               sender_id AS senderId,
+               sender_name AS senderName,
+               body,
+               attachment_name AS attachmentName,
+               attachment_type AS attachmentType,
+               NULL AS attachmentData,
+               attachment_storage_key AS attachmentStorageKey,
+               attachment_size AS attachmentSize,
+               quote_message_id AS quoteMessageId,
+               quote_sender_name AS quoteSenderName,
+               quote_body AS quoteBody,
+               recalled_at AS recalledAt,
+               created_at AS createdAt
+        FROM messages
+        WHERE ${conditions.join(" AND ")}
+        ORDER BY id DESC
+        LIMIT ?
+      `;
+      return db.prepare(sql).all(...params);
     },
     async createMessage(user, body, attachment, quote) {
       const result = insertMessage.run(
@@ -610,7 +625,38 @@ function createPostgresStore(databaseUrl) {
       );
       return result.rows[0] || null;
     },
-    async searchMessages(userId, query, limit) {
+    async searchMessages(userId, query, limit, type = "all") {
+      const conditions = [
+        "recalled_at IS NULL",
+        `id NOT IN (
+          SELECT message_id FROM message_deletions WHERE user_id = $1
+        )`,
+      ];
+      const params = [userId];
+
+      if (type === "image") {
+        conditions.push("attachment_type LIKE 'image/%'");
+      } else if (type === "video") {
+        conditions.push("attachment_type LIKE 'video/%'");
+      } else if (type === "file") {
+        conditions.push("attachment_name IS NOT NULL AND (attachment_type IS NULL OR (attachment_type NOT LIKE 'image/%' AND attachment_type NOT LIKE 'video/%'))");
+      } else if (type === "text") {
+        conditions.push("body <> ''");
+      }
+
+      if (query) {
+        params.push(`%${query}%`);
+        const patternIndex = params.length;
+        conditions.push(`(
+          body ILIKE $${patternIndex}
+          OR attachment_name ILIKE $${patternIndex}
+          OR quote_body ILIKE $${patternIndex}
+          OR sender_name ILIKE $${patternIndex}
+        )`);
+      }
+
+      params.push(limit);
+      const limitIndex = params.length;
       const result = await pool.query(
         `SELECT id::text AS "id",
                 sender_id AS "senderId",
@@ -627,19 +673,10 @@ function createPostgresStore(databaseUrl) {
                 recalled_at AS "recalledAt",
                 created_at AS "createdAt"
          FROM messages
-         WHERE recalled_at IS NULL
-           AND id NOT IN (
-             SELECT message_id FROM message_deletions WHERE user_id = $1
-           )
-           AND (
-             body ILIKE $2
-             OR attachment_name ILIKE $2
-             OR quote_body ILIKE $2
-             OR sender_name ILIKE $2
-           )
+         WHERE ${conditions.join(" AND ")}
          ORDER BY id DESC
-         LIMIT $3`,
-        [userId, `%${query}%`, limit]
+         LIMIT $${limitIndex}`,
+        params
       );
       return result.rows;
     },

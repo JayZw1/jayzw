@@ -243,6 +243,13 @@
           </div>
           <form class="message-search-form" id="messageSearchForm">
             <input id="messageSearchInput" maxlength="80" placeholder="搜索聊天内容、附件名或发送人" />
+            <select id="messageSearchType" aria-label="记录类型">
+              <option value="all">全部</option>
+              <option value="text">文字</option>
+              <option value="image">图片</option>
+              <option value="video">视频</option>
+              <option value="file">附件</option>
+            </select>
             <button type="submit">搜索</button>
           </form>
           <div class="message-search-summary" id="messageSearchSummary">输入关键词查询聊天记录。</div>

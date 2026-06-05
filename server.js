@@ -16,7 +16,7 @@ const { createAttachmentStorage } = require("./storage");
 const PORT = Number(process.env.PORT || 8080);
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 const TOKEN_MAX_AGE = "30d";
-const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+const MAX_ATTACHMENT_BYTES = Number.POSITIVE_INFINITY;
 const CLEAR_HISTORY_PASSWORD = process.env.CLEAR_HISTORY_PASSWORD || "zhangwei020216";
 const DIARY_MIN_DATE = "2025-01-01";
 const FESTIVAL_DETAILS = {
@@ -129,7 +129,7 @@ app.use(
     },
   })
 );
-app.use(express.json({ limit: "8mb" }));
+app.use(express.json({ limit: process.env.REQUEST_BODY_LIMIT || "2gb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/health", (req, res) => {
@@ -287,14 +287,16 @@ app.get("/api/messages", requireAuth, async (req, res) => {
 
 app.get("/api/messages/search", requireAuth, async (req, res) => {
   const query = String(req.query.q || "").trim().slice(0, 80);
+  const requestedType = String(req.query.type || "all").trim();
+  const type = ["all", "text", "image", "video", "file"].includes(requestedType) ? requestedType : "all";
   const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100);
 
-  if (!query) {
+  if (!query && (type === "all" || type === "text")) {
     return res.json({ messages: [] });
   }
 
   try {
-    const messages = await store.searchMessages(req.user.id, query, limit);
+    const messages = await store.searchMessages(req.user.id, query, limit, type);
     res.json({ messages });
   } catch {
     res.status(500).json({ error: "聊天记录查询失败。" });
@@ -649,7 +651,7 @@ app.get("/api/sticker", requireAuth, async (req, res) => {
     }
 
     const bytes = Buffer.from(await imageResponse.arrayBuffer());
-    if (bytes.length > MAX_ATTACHMENT_BYTES) {
+    if (Number.isFinite(MAX_ATTACHMENT_BYTES) && bytes.length > MAX_ATTACHMENT_BYTES) {
       return res.status(502).json({ error: "表情包图片超过 5MB。" });
     }
 
@@ -679,8 +681,8 @@ function cleanAttachment(rawAttachment) {
   }
 
   const size = Buffer.byteLength(match[2], "base64");
-  if (size > MAX_ATTACHMENT_BYTES) {
-    throw new Error("附件不能超过 5MB。");
+  if (Number.isFinite(MAX_ATTACHMENT_BYTES) && size > MAX_ATTACHMENT_BYTES) {
+    throw new Error("附件太大了。");
   }
 
   return { name, type, data, buffer: Buffer.from(match[2], "base64"), size };
