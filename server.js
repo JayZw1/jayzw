@@ -110,6 +110,19 @@ const io = new Server(server);
 const onlineSocketsByUser = new Map();
 let vapidPublicKey = "";
 
+app.use((req, res, next) => {
+  const requestPath = req.originalUrl.split("?")[0];
+
+  if (requestPath !== "/.well-known/assetlinks.json") {
+    return next();
+  }
+
+  return res
+    .type("application/json")
+    .sendFile(path.join(__dirname, "public", ".well-known", "assetlinks.json"), {
+      dotfiles: "allow",
+    });
+});
 app.use(compression());
 app.use((req, res, next) => {
   res.setHeader("Permissions-Policy", "camera=(self), microphone=(self)");

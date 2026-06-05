@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.jayzw.privatechat",
+      "sha256_cert_fingerprints": [
+        "BD:7B:1F:EB:04:7D:F3:CA:43:76:45:31:D8:E2:A3:6E:0F:02:97:09:87:ED:C3:08:8B:6A:6B:72:8F:61:5A:7E"
+      ]
+    }
+  }
+]
