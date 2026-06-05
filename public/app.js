@@ -311,21 +311,26 @@ function scrollMessagesToBottom() {
 }
 
 function settleMessagesAtBottom() {
-  state.bottomSettleUntil = Date.now() + 4200;
-  scrollMessagesToBottom();
-  for (const delay of [80, 180, 360, 720, 1200, 2000, 3500]) {
-    setTimeout(() => {
-      if (Date.now() <= state.bottomSettleUntil) {
-        scrollMessagesToBottom();
-      }
-    }, delay);
-  }
+  state.bottomSettleUntil = Date.now() + 2600;
+  jumpToLatestMessage();
+  requestAnimationFrame(jumpToLatestMessage);
 }
 
 function settleMessagesAtBottomIfActive() {
   if (Date.now() <= state.bottomSettleUntil) {
-    settleMessagesAtBottom();
+    jumpToLatestMessage();
   }
+}
+
+function jumpToLatestMessage() {
+  const latest = messagesEl.lastElementChild;
+
+  if (!latest) {
+    return;
+  }
+
+  latest.scrollIntoView({ block: "end", inline: "nearest", behavior: "auto" });
+  messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
 function api(path, options = {}) {
