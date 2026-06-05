@@ -1364,8 +1364,8 @@ button:hover {
   }
 
   .chat-header {
-    gap: 8px;
-    padding: calc(12px + env(safe-area-inset-top)) 14px 12px;
+    gap: 6px;
+    padding: 8px 10px 8px;
   }
 
   .chat-header > div:first-child {
@@ -1374,32 +1374,32 @@ button:hover {
 
   .chat-header h1 {
     overflow: hidden;
-    font-size: 14px;
+    font-size: 13px;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .important-days-button {
     width: 52px;
-    height: 28px;
+    height: 25px;
     font-size: 11px;
   }
 
   .other-feature-button {
     width: 52px;
-    height: 28px;
+    height: 25px;
     font-size: 11px;
   }
 
   .food-button {
     width: 42px;
-    height: 28px;
+    height: 25px;
     font-size: 11px;
   }
 
   .diary-button {
     width: 52px;
-    height: 24px;
+    height: 23px;
     font-size: 10px;
   }
 
@@ -1409,8 +1409,8 @@ button:hover {
       "title feature tools"
       "title weather weather";
     grid-template-columns: minmax(76px, 1fr) 52px 42px;
-    column-gap: 8px;
-    row-gap: 6px;
+    column-gap: 6px;
+    row-gap: 4px;
     width: 100%;
   }
 
@@ -1435,13 +1435,13 @@ button:hover {
 
   .message-search-button {
     width: 52px;
-    height: 24px;
+    height: 22px;
     font-size: 10px;
   }
 
   .schedule-button {
     width: 42px;
-    height: 28px;
+    height: 25px;
     font-size: 11px;
   }
 
@@ -1456,7 +1456,8 @@ button:hover {
   }
 
   .chat-header p {
-    margin-top: 4px;
+    margin-top: 3px;
+    font-size: 12px;
   }
 
   .ghost {
@@ -1466,11 +1467,12 @@ button:hover {
   }
 
   .header-actions {
-    gap: 4px;
+    gap: 5px;
   }
 
   .icon-control {
-    width: 44px;
+    width: 40px;
+    height: 28px;
     font-size: 12px;
   }
 
@@ -1496,7 +1498,7 @@ button:hover {
     grid-template-columns: 38px minmax(0, 1fr) 38px 38px 54px;
     align-items: end;
     gap: 6px;
-    padding: 10px max(8px, env(safe-area-inset-left)) calc(10px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-right));
+    padding: 6px max(8px, env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-right));
   }
 
   body.composer-keyboard-open .composer {
@@ -1516,12 +1518,12 @@ button:hover {
   }
 
   body.ios-composer-keyboard-open .composer {
-    transform: translateY(-190px);
+    transform: translateY(-270px);
   }
 
   body.ios-composer-keyboard-open .messages {
-    padding-bottom: calc(var(--composer-height, 68px) + 198px);
-    scroll-padding-bottom: calc(var(--composer-height, 68px) + 198px);
+    padding-bottom: calc(var(--composer-height, 68px) + 278px);
+    scroll-padding-bottom: calc(var(--composer-height, 68px) + 278px);
   }
 
   body.food-keyboard-open .food-panel {
@@ -1660,7 +1662,7 @@ button:hover {
   .attach-button,
   .call-button,
   .emoji-button {
-    height: 40px;
+    height: 36px;
     padding: 0;
   }
 
