@@ -2906,35 +2906,7 @@ function startRelayVideo() {
 }
 
 function startRelayAudio() {
-  if (!localStream?.getAudioTracks().length || !window.MediaRecorder) {
-    return;
-  }
-
-  try {
-    relayAudioRecorder = new MediaRecorder(localStream, { mimeType: "audio/webm;codecs=opus" });
-  } catch {
-    try {
-      relayAudioRecorder = new MediaRecorder(localStream);
-    } catch {
-      return;
-    }
-  }
-
-  relayAudioRecorder.addEventListener("dataavailable", (event) => {
-    if (!event.data.size || callEnded) {
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.addEventListener("load", () => {
-      state.socket.emit("call:media", {
-        kind: "audio",
-        data: reader.result,
-      });
-    });
-    reader.readAsDataURL(event.data);
-  });
-  relayAudioRecorder.start(350);
+  stopRelayAudio();
 }
 
 function receiveRelayMedia({ kind, data }) {
@@ -2959,14 +2931,17 @@ function receiveRelayMedia({ kind, data }) {
   }
 
   if (kind === "audio") {
-    remoteAudioQueue.push(data);
-    playNextRemoteAudio();
+    return;
   }
 }
 
 function stopRelayMedia() {
   clearInterval(relayVideoTimer);
   relayVideoTimer = null;
+  stopRelayAudio();
+}
+
+function stopRelayAudio() {
   if (relayAudioRecorder?.state !== "inactive") {
     relayAudioRecorder?.stop();
   }
