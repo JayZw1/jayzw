@@ -1,9 +1,9 @@
-const CACHE_NAME = "private-chat-shell-v16";
+const CACHE_NAME = "private-chat-shell-v17";
 const SHELL_TIMEOUT_MS = 1200;
 const STATIC_ASSETS = [
   "/",
-  "/styles.css?v=20260606-android-media-retry",
-  "/app.js?v=20260606-android-media-retry",
+  "/styles.css?v=20260606-android-echo-cancel",
+  "/app.js?v=20260606-android-echo-cancel",
   "/manifest.webmanifest",
   "/icons/icon-192.png",
   "/icons/icon-512.png",

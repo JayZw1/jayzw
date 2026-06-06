@@ -2503,7 +2503,7 @@ function getMediaConstraints(mode) {
 
 function getSimpleMediaConstraints(mode) {
   return {
-    audio: true,
+    audio: getPreferredAudioConstraints(),
     video: mode === "video" ? { facingMode: { ideal: currentCameraFacingMode } } : false,
   };
 }
@@ -2516,6 +2516,14 @@ function getBasicMediaConstraints(mode) {
   return {
     audio: true,
     video: mode === "video" ? true : false,
+  };
+}
+
+function getPreferredAudioConstraints() {
+  return {
+    echoCancellation: { ideal: true },
+    noiseSuppression: { ideal: true },
+    autoGainControl: { ideal: true },
   };
 }
 
