@@ -2485,6 +2485,10 @@ function createPeerConnection() {
 }
 
 function getMediaConstraints(mode) {
+  if (isAndroidWebView()) {
+    return getSimpleMediaConstraints(mode);
+  }
+
   return {
     audio: {
       echoCancellation: true,
@@ -2500,6 +2504,30 @@ function getMediaConstraints(mode) {
           }
         : false,
   };
+}
+
+function getSimpleMediaConstraints(mode) {
+  return {
+    audio: true,
+    video: mode === "video" ? true : false,
+  };
+}
+
+function isAndroidWebView() {
+  return /Android/i.test(navigator.userAgent);
+}
+
+async function acquireLocalStream(mode) {
+  const constraints = getMediaConstraints(mode);
+
+  try {
+    return await navigator.mediaDevices.getUserMedia(constraints);
+  } catch (error) {
+    if (isAndroidWebView() && JSON.stringify(constraints) !== JSON.stringify(getSimpleMediaConstraints(mode))) {
+      return navigator.mediaDevices.getUserMedia(getSimpleMediaConstraints(mode));
+    }
+    throw error;
+  }
 }
 
 async function startCall(mode) {
@@ -2524,7 +2552,7 @@ async function startCall(mode) {
   callStatus.textContent = mode === "video" ? "正在发起视频通话..." : "正在发起语音通话...";
 
   try {
-    localStream = await navigator.mediaDevices.getUserMedia(getMediaConstraints(mode));
+    localStream = await acquireLocalStream(mode);
   } catch (error) {
     callStatus.textContent = getMediaErrorText(error, mode);
     setTimeout(() => endCall(false), 1400);
@@ -2567,7 +2595,7 @@ async function acceptCall() {
   callStatus.textContent = mode === "video" ? "视频通话中" : "语音通话中";
 
   try {
-    localStream = await navigator.mediaDevices.getUserMedia(getMediaConstraints(mode));
+    localStream = await acquireLocalStream(mode);
   } catch {
     localStream = null;
     callStatus.textContent = "本机无可用麦克风/摄像头，正在只接收对方声音和画面";
