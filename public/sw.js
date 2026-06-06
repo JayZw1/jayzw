@@ -1,9 +1,9 @@
-const CACHE_NAME = "private-chat-shell-v18";
+const CACHE_NAME = "private-chat-shell-v19";
 const SHELL_TIMEOUT_MS = 1200;
 const STATIC_ASSETS = [
   "/",
-  "/styles.css?v=20260606-disable-relay-audio",
-  "/app.js?v=20260606-disable-relay-audio",
+  "/styles.css?v=20260606-muted-local-preview",
+  "/app.js?v=20260606-muted-local-preview",
   "/manifest.webmanifest",
   "/icons/icon-192.png",
   "/icons/icon-512.png",

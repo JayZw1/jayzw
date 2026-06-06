@@ -2602,6 +2602,14 @@ function updateSwitchCameraButtonVisibility() {
   switchCameraButton?.classList.toggle("hidden", !shouldShow);
 }
 
+function setLocalPreviewStream() {
+  localVideo.muted = true;
+  localVideo.volume = 0;
+
+  const videoTracks = localStream?.getVideoTracks() || [];
+  localVideo.srcObject = videoTracks.length ? new MediaStream(videoTracks) : null;
+}
+
 async function switchCamera() {
   if (currentCallMode !== "video" || callEnded || !localStream?.getVideoTracks().length) {
     return;
@@ -2632,7 +2640,7 @@ async function switchCamera() {
       track.stop();
     });
     localStream.addTrack(nextTrack);
-    localVideo.srcObject = localStream;
+    setLocalPreviewStream();
     currentCameraFacingMode = nextFacingMode;
     callStatus.textContent = "已切换镜头";
     setTimeout(() => {
@@ -2683,7 +2691,7 @@ async function startCall(mode) {
     setTimeout(() => endCall(false), 1400);
     return;
   }
-  localVideo.srcObject = localStream;
+  setLocalPreviewStream();
   updateSwitchCameraButtonVisibility();
   peerConnection = createPeerConnection();
   addLocalOrReceiveOnlyTracks(mode);
@@ -2729,7 +2737,7 @@ async function acceptCall() {
     callStatus.textContent = "本机无可用麦克风/摄像头，正在只接收对方声音和画面";
   }
 
-  localVideo.srcObject = localStream;
+  setLocalPreviewStream();
   updateSwitchCameraButtonVisibility();
 
   if (!offer) {
