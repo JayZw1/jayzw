@@ -137,6 +137,7 @@ const remoteRelayImage = document.querySelector("#remoteRelayImage");
 const remoteRelayAudio = document.querySelector("#remoteRelayAudio");
 const acceptCallButton = document.querySelector("#acceptCallButton");
 const declineCallButton = document.querySelector("#declineCallButton");
+const switchCameraButton = document.querySelector("#switchCameraButton");
 const endCallButton = document.querySelector("#endCallButton");
 const MAX_ATTACHMENT_BYTES = Number.POSITIVE_INFINITY;
 let currentSticker = null;
@@ -150,6 +151,7 @@ let disconnectTimer = null;
 let callEnded = false;
 let outgoingCallTimer = null;
 let callConnected = false;
+let currentCameraFacingMode = "user";
 let relayVideoTimer = null;
 let relayAudioRecorder = null;
 let remoteAudioQueue = [];
@@ -2495,26 +2497,39 @@ function getMediaConstraints(mode) {
       noiseSuppression: true,
       autoGainControl: true,
     },
-    video:
-      mode === "video"
-        ? {
-            width: { ideal: 640, max: 960 },
-            height: { ideal: 360, max: 540 },
-            frameRate: { ideal: 24, max: 30 },
-          }
-        : false,
+    video: mode === "video" ? getPreferredVideoConstraints(currentCameraFacingMode) : false,
   };
 }
 
 function getSimpleMediaConstraints(mode) {
   return {
     audio: true,
-    video: mode === "video" ? true : false,
+    video: mode === "video" ? { facingMode: { ideal: currentCameraFacingMode } } : false,
   };
 }
 
 function isAndroidWebView() {
   return /Android/i.test(navigator.userAgent);
+}
+
+function getBasicMediaConstraints(mode) {
+  return {
+    audio: true,
+    video: mode === "video" ? true : false,
+  };
+}
+
+function getPreferredVideoConstraints(facingMode = currentCameraFacingMode, exact = false) {
+  const facingValue = exact ? { exact: facingMode } : { ideal: facingMode };
+  const constraints = { facingMode: facingValue };
+
+  if (!isAndroidWebView()) {
+    constraints.width = { ideal: 640, max: 960 };
+    constraints.height = { ideal: 360, max: 540 };
+    constraints.frameRate = { ideal: 24, max: 30 };
+  }
+
+  return constraints;
 }
 
 async function acquireLocalStream(mode) {
@@ -2526,7 +2541,85 @@ async function acquireLocalStream(mode) {
     if (isAndroidWebView() && JSON.stringify(constraints) !== JSON.stringify(getSimpleMediaConstraints(mode))) {
       return navigator.mediaDevices.getUserMedia(getSimpleMediaConstraints(mode));
     }
+    if (isAndroidWebView()) {
+      return navigator.mediaDevices.getUserMedia(getBasicMediaConstraints(mode));
+    }
     throw error;
+  }
+}
+
+async function acquireCameraStream(facingMode) {
+  const candidates = [
+    { audio: false, video: getPreferredVideoConstraints(facingMode, true) },
+    { audio: false, video: getPreferredVideoConstraints(facingMode) },
+    { audio: false, video: true },
+  ];
+  let lastError = null;
+
+  for (const constraints of candidates) {
+    try {
+      return await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError;
+}
+
+function updateSwitchCameraButtonVisibility() {
+  const shouldShow = currentCallMode === "video" && !callEnded && Boolean(localStream?.getVideoTracks().length);
+  switchCameraButton?.classList.toggle("hidden", !shouldShow);
+}
+
+async function switchCamera() {
+  if (currentCallMode !== "video" || callEnded || !localStream?.getVideoTracks().length) {
+    return;
+  }
+
+  const nextFacingMode = currentCameraFacingMode === "user" ? "environment" : "user";
+  switchCameraButton.disabled = true;
+
+  try {
+    const nextStream = await acquireCameraStream(nextFacingMode);
+    const [nextTrack] = nextStream.getVideoTracks();
+
+    if (!nextTrack) {
+      throw new Error("No video track");
+    }
+
+    const oldVideoTracks = localStream.getVideoTracks();
+    const sender = peerConnection?.getSenders().find((item) => item.track?.kind === "video");
+
+    if (sender) {
+      await sender.replaceTrack(nextTrack);
+    } else if (peerConnection) {
+      peerConnection.addTrack(nextTrack, localStream);
+    }
+
+    oldVideoTracks.forEach((track) => {
+      localStream.removeTrack?.(track);
+      track.stop();
+    });
+    localStream.addTrack(nextTrack);
+    localVideo.srcObject = localStream;
+    currentCameraFacingMode = nextFacingMode;
+    callStatus.textContent = "已切换镜头";
+    setTimeout(() => {
+      if (!callEnded && currentCallMode === "video") {
+        callStatus.textContent = "视频通话中";
+      }
+    }, 900);
+  } catch {
+    callStatus.textContent = "当前设备没有可切换的后置镜头";
+    setTimeout(() => {
+      if (!callEnded && currentCallMode === "video") {
+        callStatus.textContent = "视频通话中";
+      }
+    }, 1400);
+  } finally {
+    switchCameraButton.disabled = false;
+    updateSwitchCameraButtonVisibility();
   }
 }
 
@@ -2542,6 +2635,7 @@ async function startCall(mode) {
   }
 
   currentCallMode = mode;
+  currentCameraFacingMode = "user";
   callStartedAt = null;
   callConnected = false;
   callEnded = false;
@@ -2549,6 +2643,7 @@ async function startCall(mode) {
   callPanel.classList.remove("hidden");
   acceptCallButton.classList.add("hidden");
   declineCallButton.classList.add("hidden");
+  updateSwitchCameraButtonVisibility();
   callStatus.textContent = mode === "video" ? "正在发起视频通话..." : "正在发起语音通话...";
 
   try {
@@ -2559,6 +2654,7 @@ async function startCall(mode) {
     return;
   }
   localVideo.srcObject = localStream;
+  updateSwitchCameraButtonVisibility();
   peerConnection = createPeerConnection();
   addLocalOrReceiveOnlyTracks(mode);
 
@@ -2585,6 +2681,7 @@ async function acceptCall() {
 
   const { mode, offer } = pendingOffer;
   currentCallMode = mode;
+  currentCameraFacingMode = "user";
   callStartedAt = null;
   callConnected = false;
   callEnded = false;
@@ -2592,6 +2689,7 @@ async function acceptCall() {
   pendingOffer = null;
   acceptCallButton.classList.add("hidden");
   declineCallButton.classList.add("hidden");
+  updateSwitchCameraButtonVisibility();
   callStatus.textContent = mode === "video" ? "视频通话中" : "语音通话中";
 
   try {
@@ -2602,6 +2700,7 @@ async function acceptCall() {
   }
 
   localVideo.srcObject = localStream;
+  updateSwitchCameraButtonVisibility();
 
   if (!offer) {
     state.socket.emit("call:answer", { relay: true });
@@ -2634,6 +2733,7 @@ function receiveCall({ from, mode, offer }) {
   callPanel.classList.remove("hidden");
   acceptCallButton.classList.remove("hidden");
   declineCallButton.classList.remove("hidden");
+  updateSwitchCameraButtonVisibility();
   callStatus.textContent = `${from.displayName} 邀请你${mode === "video" ? "视频通话" : "语音通话"}`;
   if ("Notification" in window && Notification.permission === "granted") {
     new Notification("碎碎念收件箱", {
@@ -2915,9 +3015,11 @@ function cleanupCall() {
   pendingIceCandidates = [];
   callStartedAt = null;
   currentCallMode = null;
+  currentCameraFacingMode = "user";
   callConnected = false;
   acceptCallButton.classList.add("hidden");
   declineCallButton.classList.add("hidden");
+  updateSwitchCameraButtonVisibility();
   callPanel.classList.add("hidden");
 }
 
@@ -3329,6 +3431,7 @@ videoCallButton?.addEventListener("click", () => {
 });
 acceptCallButton?.addEventListener("click", acceptCall);
 declineCallButton?.addEventListener("click", declineCall);
+switchCameraButton?.addEventListener("click", switchCamera);
 endCallButton?.addEventListener("click", () => endCall(true));
 messageSearchButton?.addEventListener("click", openMessageSearchPanel);
 messageSearchForm?.addEventListener("submit", searchMessages);

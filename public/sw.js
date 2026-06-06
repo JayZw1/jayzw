@@ -1,9 +1,9 @@
-const CACHE_NAME = "private-chat-shell-v14";
+const CACHE_NAME = "private-chat-shell-v15";
 const SHELL_TIMEOUT_MS = 1200;
 const STATIC_ASSETS = [
   "/",
-  "/styles.css?v=20260606-android-call",
-  "/app.js?v=20260606-android-call",
+  "/styles.css?v=20260606-camera-switch",
+  "/app.js?v=20260606-camera-switch",
   "/manifest.webmanifest",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
