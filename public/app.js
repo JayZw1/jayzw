@@ -2442,7 +2442,7 @@ function createPeerConnection() {
     remoteRelayImage.classList.add("hidden");
     remoteVideo.classList.remove("hidden");
     remoteVideo.muted = false;
-    remoteVideo.volume = 1;
+    remoteVideo.volume = getRemotePlaybackVolume();
     callConnected = true;
     if (!callStartedAt) {
       callStartedAt = Date.now();
@@ -2523,8 +2523,18 @@ function getPreferredAudioConstraints() {
   return {
     echoCancellation: { ideal: true },
     noiseSuppression: { ideal: true },
-    autoGainControl: { ideal: true },
+    autoGainControl: { ideal: !isAndroidWebView() },
   };
+}
+
+function getRemotePlaybackVolume() {
+  return isAndroidWebView() ? 0.38 : 1;
+}
+
+function setNativeCallAudioActive(active) {
+  try {
+    window.PrivateChatNative?.setCallAudioActive?.(Boolean(active));
+  } catch {}
 }
 
 function getPreferredVideoConstraints(facingMode = currentCameraFacingMode, exact = false) {
@@ -2681,6 +2691,7 @@ async function startCall(mode) {
   callPanel.classList.remove("hidden");
   acceptCallButton.classList.add("hidden");
   declineCallButton.classList.add("hidden");
+  setNativeCallAudioActive(true);
   updateSwitchCameraButtonVisibility();
   callStatus.textContent = mode === "video" ? "正在发起视频通话..." : "正在发起语音通话...";
 
@@ -2727,6 +2738,7 @@ async function acceptCall() {
   pendingOffer = null;
   acceptCallButton.classList.add("hidden");
   declineCallButton.classList.add("hidden");
+  setNativeCallAudioActive(true);
   updateSwitchCameraButtonVisibility();
   callStatus.textContent = mode === "video" ? "视频通话中" : "语音通话中";
 
@@ -3007,6 +3019,7 @@ function endCall(emit = true, reason = "ended") {
 
 function cleanupCall() {
   callEnded = true;
+  setNativeCallAudioActive(false);
   stopRelayMedia();
   clearTimeout(outgoingCallTimer);
   outgoingCallTimer = null;
