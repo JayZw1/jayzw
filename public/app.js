@@ -2538,14 +2538,36 @@ async function acquireLocalStream(mode) {
   try {
     return await navigator.mediaDevices.getUserMedia(constraints);
   } catch (error) {
-    if (isAndroidWebView() && JSON.stringify(constraints) !== JSON.stringify(getSimpleMediaConstraints(mode))) {
-      return navigator.mediaDevices.getUserMedia(getSimpleMediaConstraints(mode));
-    }
     if (isAndroidWebView()) {
-      return navigator.mediaDevices.getUserMedia(getBasicMediaConstraints(mode));
+      return acquireAndroidLocalStream(mode, error);
     }
     throw error;
   }
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function acquireAndroidLocalStream(mode, initialError) {
+  const candidates = [getSimpleMediaConstraints(mode), getBasicMediaConstraints(mode)];
+  let lastError = initialError;
+
+  for (let round = 0; round < 3; round += 1) {
+    if (round > 0) {
+      await delay(450);
+    }
+
+    for (const constraints of candidates) {
+      try {
+        return await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+  }
+
+  throw lastError;
 }
 
 async function acquireCameraStream(facingMode) {
