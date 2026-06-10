@@ -3758,13 +3758,8 @@ function receiveGomokuTimeout({ gameId, loser, winner }) {
   renderGomoku();
 }
 
-function receiveGomokuBanter({ from, gameId, text }) {
-  const game = ensureGomokuState();
-
-  if (gameId && game.gameId && gameId !== game.gameId) {
-    return;
-  }
-
+function receiveGomokuBanter({ from, text }) {
+  ensureGomokuState();
   showGomokuBanterBubble({ from, text });
 }
 

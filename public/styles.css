@@ -1201,7 +1201,7 @@ button.attachment {
 .gomoku-banter-float {
   position: absolute;
   z-index: 3;
-  top: 38px;
+  bottom: calc(100% + 8px);
   max-width: min(92%, 460px);
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -2517,7 +2517,7 @@ button.attachment {
   }
 
   .gomoku-banter-float {
-    top: 34px;
+    bottom: calc(100% + 6px);
     font-size: 11px;
   }
 
