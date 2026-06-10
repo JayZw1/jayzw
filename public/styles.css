@@ -1191,6 +1191,82 @@ button.attachment {
   font-size: 13px;
 }
 
+.gomoku-banter {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.gomoku-banter-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  max-height: 96px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.gomoku-banter-bubble {
+  display: grid;
+  gap: 2px;
+  max-width: 86%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f9fafb;
+  color: var(--text);
+  line-height: 1.35;
+  padding: 7px 9px;
+}
+
+.gomoku-banter-bubble.mine {
+  justify-self: end;
+  border-color: rgba(37, 99, 235, 0.22);
+  background: #eff6ff;
+}
+
+.gomoku-banter-bubble.theirs {
+  justify-self: start;
+}
+
+.gomoku-banter-bubble strong {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.gomoku-banter-bubble span {
+  font-size: 12px;
+}
+
+.gomoku-banter-actions {
+  display: grid;
+  gap: 6px;
+}
+
+.gomoku-banter-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.gomoku-banter-group > span {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.gomoku-banter-group button {
+  flex: 0 0 auto;
+  width: 50px;
+  height: 26px;
+  padding: 0;
+  font-size: 11px;
+}
+
 .gomoku-board {
   --gomoku-cell: min(33px, calc((100vw - 82px) / 15));
   display: grid;
@@ -2427,6 +2503,25 @@ button.attachment {
 
   .gomoku-toolbar button {
     width: 38px;
+  }
+
+  .gomoku-banter-feed {
+    max-height: 76px;
+  }
+
+  .gomoku-banter-bubble {
+    max-width: 92%;
+    padding: 6px 8px;
+  }
+
+  .gomoku-banter-bubble span {
+    font-size: 11px;
+  }
+
+  .gomoku-banter-group button {
+    width: 44px;
+    height: 24px;
+    font-size: 10px;
   }
 
   .diary-calendar {

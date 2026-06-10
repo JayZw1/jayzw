@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-    <link rel="stylesheet" href="/styles.css?v=20260610-gomoku-own-undo" />
+    <link rel="stylesheet" href="/styles.css?v=20260610-gomoku-banter" />
   </head>
   <body>
     <main class="shell">
@@ -283,6 +283,10 @@
               <button class="ghost" id="resetGomokuButton" type="button">重开</button>
             </div>
           </div>
+          <div class="gomoku-banter">
+            <div class="gomoku-banter-feed" id="gomokuBanterFeed"></div>
+            <div class="gomoku-banter-actions" id="gomokuBanterActions"></div>
+          </div>
           <div class="gomoku-board" id="gomokuBoard" aria-label="五子棋棋盘"></div>
         </div>
       </div>
@@ -361,6 +365,6 @@
     </main>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="/app.js?v=20260610-gomoku-own-undo"></script>
+    <script src="/app.js?v=20260610-gomoku-banter"></script>
   </body>
 </html>

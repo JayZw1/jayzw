@@ -24,6 +24,26 @@ const DIARY_MIN_DATE = "2025-01-01";
 const DIARY_MIN_MONTH = DIARY_MIN_DATE.slice(0, 7);
 const GOMOKU_SIZE = 15;
 const GOMOKU_TURN_SECONDS = 20;
+const GOMOKU_BANTER = {
+  tease: {
+    label: "挑衅",
+    lines: [
+      "哎呀，不小心又堵了你一条路，我真不是故意的～",
+      "你的棋路像我奶奶织的毛衣——全是洞。",
+      "哎呀，这条龙好像要连起来了呢",
+      "你已经有进步了！上次你输给我用了10步，这次已经撑到15步了👏",
+    ],
+  },
+  cheer: {
+    label: "鼓励",
+    lines: [
+      "没关系，人生那么长，你总会赢我一次的……大概。",
+      "比赛结束无论胜负，亲一下就好 👄",
+      "这一步虽然普通，但你思考的样子真的很迷人。",
+      "不用急，我永远等你慢慢想",
+    ],
+  },
+};
 
 const loginPanel = document.querySelector("#loginPanel");
 const chatPanel = document.querySelector("#chatPanel");
@@ -91,6 +111,8 @@ const undoGomokuButton = document.querySelector("#undoGomokuButton");
 const resetGomokuButton = document.querySelector("#resetGomokuButton");
 const gomokuStatus = document.querySelector("#gomokuStatus");
 const gomokuBoard = document.querySelector("#gomokuBoard");
+const gomokuBanterFeed = document.querySelector("#gomokuBanterFeed");
+const gomokuBanterActions = document.querySelector("#gomokuBanterActions");
 const messageSearchButton = document.querySelector("#messageSearchButton");
 const messageSearchPanel = document.querySelector("#messageSearchPanel");
 const messageSearchForm = document.querySelector("#messageSearchForm");
@@ -3099,6 +3121,7 @@ function createGomokuState(overrides = {}) {
     winner: null,
     draw: false,
     moves: [],
+    banter: [],
     opponentName: "对方",
     opponentInPanel: false,
     turnEndsAt: null,
@@ -3226,6 +3249,81 @@ function updateGomokuStatus(text) {
   }
 }
 
+function renderGomokuBanter() {
+  if (!gomokuBanterFeed || !gomokuBanterActions) {
+    return;
+  }
+
+  const game = ensureGomokuState();
+  gomokuBanterFeed.innerHTML = "";
+
+  for (const item of game.banter.slice(-3)) {
+    const bubble = document.createElement("div");
+    bubble.className = `gomoku-banter-bubble ${item.mine ? "mine" : "theirs"}`;
+    const name = document.createElement("strong");
+    name.textContent = item.senderName || (item.mine ? "我" : "对方");
+    const text = document.createElement("span");
+    text.textContent = item.text;
+    bubble.append(name, text);
+    gomokuBanterFeed.append(bubble);
+  }
+
+  gomokuBanterActions.innerHTML = "";
+  for (const [type, group] of Object.entries(GOMOKU_BANTER)) {
+    const section = document.createElement("div");
+    section.className = "gomoku-banter-group";
+    const title = document.createElement("span");
+    title.textContent = group.label;
+    section.append(title);
+
+    group.lines.forEach((line, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "ghost";
+      button.textContent = `${group.label}${index + 1}`;
+      button.title = line;
+      button.addEventListener("click", () => sendGomokuBanter(type, line));
+      section.append(button);
+    });
+
+    gomokuBanterActions.append(section);
+  }
+}
+
+function appendGomokuBanter({ from, text }) {
+  const game = ensureGomokuState();
+  const cleanText = String(text || "").trim();
+
+  if (!cleanText) {
+    return;
+  }
+
+  game.banter.push({
+    mine: from?.id === state.user?.id,
+    senderName: from?.displayName || (from?.id === state.user?.id ? "我" : "对方"),
+    text: cleanText,
+  });
+  game.banter = game.banter.slice(-8);
+  renderGomokuBanter();
+}
+
+function sendGomokuBanter(type, text) {
+  const game = ensureGomokuState();
+  const cleanText = String(text || "").trim();
+
+  if (!cleanText) {
+    return;
+  }
+
+  appendGomokuBanter({ from: state.user, text: cleanText });
+  state.socket?.emit("game:banter", {
+    game: "gomoku",
+    gameId: game.gameId || "",
+    type,
+    text: cleanText,
+  });
+}
+
 function renderGomokuInviteControls(game) {
   if (
     !inviteGomokuButton ||
@@ -3321,6 +3419,7 @@ function renderGomoku() {
   const game = ensureGomokuState();
   renderGomokuInviteControls(game);
   updateGomokuStatus(getGomokuStatusText(game));
+  renderGomokuBanter();
 
   if (!gomokuBoard) {
     return;
@@ -3635,6 +3734,16 @@ function receiveGomokuTimeout({ gameId, loser, winner }) {
   game.turnEndsAt = null;
   clearGomokuTurnTimer();
   renderGomoku();
+}
+
+function receiveGomokuBanter({ from, gameId, text }) {
+  const game = ensureGomokuState();
+
+  if (gameId && game.gameId && gameId !== game.gameId) {
+    return;
+  }
+
+  appendGomokuBanter({ from, text });
 }
 
 function requestGomokuReset() {
@@ -3980,6 +4089,7 @@ function connectSocket() {
   state.socket.on("game:panel-close", receiveGomokuPanelClose);
   state.socket.on("game:move", receiveGomokuMove);
   state.socket.on("game:timeout", receiveGomokuTimeout);
+  state.socket.on("game:banter", receiveGomokuBanter);
   state.socket.on("game:reset-request", receiveGomokuResetRequest);
   state.socket.on("game:reset-accept", receiveGomokuResetAccepted);
   state.socket.on("game:reset-decline", receiveGomokuResetDeclined);

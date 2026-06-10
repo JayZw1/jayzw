@@ -1240,6 +1240,22 @@ io.on("connection", (socket) => {
     });
   });
 
+  socket.on("game:banter", (payload) => {
+    const text = String(payload?.text || "").trim();
+
+    if (!text || text.length > 80) {
+      return;
+    }
+
+    socket.broadcast.emit("game:banter", {
+      from: publicUser(socket.user),
+      game: "gomoku",
+      gameId: String(payload?.gameId || ""),
+      type: payload?.type === "cheer" ? "cheer" : "tease",
+      text,
+    });
+  });
+
   socket.on("game:reset-request", (payload) => {
     socket.broadcast.emit("game:reset-request", {
       from: publicUser(socket.user),
