@@ -1184,8 +1184,16 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("game:refresh", (payload) => {
-    socket.broadcast.emit("game:refresh", {
+  socket.on("game:panel-open", (payload) => {
+    socket.broadcast.emit("game:panel-open", {
+      from: publicUser(socket.user),
+      game: "gomoku",
+      gameId: String(payload?.gameId || ""),
+    });
+  });
+
+  socket.on("game:panel-close", (payload) => {
+    socket.broadcast.emit("game:panel-close", {
       from: publicUser(socket.user),
       game: "gomoku",
       gameId: String(payload?.gameId || ""),
@@ -1216,6 +1224,19 @@ io.on("connection", (socket) => {
       from: publicUser(socket.user),
       game: "gomoku",
       gameId: String(payload?.gameId || ""),
+    });
+  });
+
+  socket.on("game:timeout", (payload) => {
+    const loser = payload?.loser === "white" ? "white" : "black";
+    const winner = loser === "black" ? "white" : "black";
+
+    socket.broadcast.emit("game:timeout", {
+      from: publicUser(socket.user),
+      game: "gomoku",
+      gameId: String(payload?.gameId || ""),
+      loser,
+      winner,
     });
   });
 
