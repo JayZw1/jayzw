@@ -1020,7 +1020,7 @@ button.attachment {
 }
 
 .game-card {
-  width: min(100%, 520px);
+  width: min(100%, 620px);
   grid-template-rows: auto auto auto auto minmax(0, 1fr);
   max-height: calc(var(--app-height, 100dvh) - 36px);
   min-height: 0;
@@ -1167,7 +1167,7 @@ button.attachment {
 }
 
 .gomoku-board {
-  --gomoku-cell: min(27px, calc((100vw - 82px) / 15));
+  --gomoku-cell: min(33px, calc((100vw - 82px) / 15));
   display: grid;
   grid-template-columns: repeat(15, var(--gomoku-cell));
   grid-template-rows: repeat(15, var(--gomoku-cell));
@@ -2378,14 +2378,14 @@ button.attachment {
   }
 
   .game-card {
-    width: calc(100% - 20px);
-    max-height: calc(var(--app-height, 100dvh) - 20px);
+    width: calc(100% - 12px);
+    max-height: calc(var(--app-height, 100dvh) - 12px);
     padding: 12px;
     gap: 10px;
   }
 
   .gomoku-board {
-    --gomoku-cell: min(21px, calc((100vw - 58px) / 15));
+    --gomoku-cell: min(24px, calc((100vw - 42px) / 15));
     padding: 6px;
   }
 

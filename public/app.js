@@ -4005,9 +4005,6 @@ document.addEventListener("click", (event) => {
   if (diaryPanel && !diaryPanel.classList.contains("hidden") && event.target === diaryPanel) {
     closeDiaryPanel();
   }
-  if (gamePanel && !gamePanel.classList.contains("hidden") && event.target === gamePanel) {
-    closeGamePanel();
-  }
 });
 
 attachButton.addEventListener("click", () => {
