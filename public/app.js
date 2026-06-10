@@ -175,6 +175,7 @@ let typingStopTimer = null;
 let typingIndicatorTimer = null;
 let savedStatusText = "";
 let lastResumeRefreshAt = 0;
+let gomokuInviteTimer = null;
 const isIOSLike = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 const EMOJIS = [
   "😀",
@@ -3115,6 +3116,26 @@ function closeGamePanel() {
   gamePanel?.classList.add("hidden");
 }
 
+function clearGomokuInviteTimer() {
+  clearTimeout(gomokuInviteTimer);
+  gomokuInviteTimer = null;
+}
+
+function startGomokuInviteTimer(gameId) {
+  clearGomokuInviteTimer();
+  gomokuInviteTimer = setTimeout(() => {
+    const game = ensureGomokuState();
+
+    if (game.gameId !== gameId || !game.pendingOutgoing) {
+      return;
+    }
+
+    state.gomoku = createGomokuState();
+    renderGomoku();
+    updateGomokuStatus("对方 5 秒内未应战，邀请已自动取消");
+  }, 5000);
+}
+
 function gomokuColorName(color) {
   return color === "black" ? "黑棋" : "白棋";
 }
@@ -3345,6 +3366,7 @@ function inviteGomokuGame() {
   gamePanel?.classList.remove("hidden");
   renderGomoku();
   state.socket.emit("game:invite", { gameId, game: "gomoku" });
+  startGomokuInviteTimer(gameId);
 }
 
 function receiveGomokuInvite({ from, gameId }) {
@@ -3352,6 +3374,7 @@ function receiveGomokuInvite({ from, gameId }) {
     return;
   }
 
+  clearGomokuInviteTimer();
   state.gomoku = createGomokuState({
     gameId,
     pendingIncoming: { from },
@@ -3387,6 +3410,7 @@ function acceptGomokuInvite() {
   }
 
   game.active = true;
+  clearGomokuInviteTimer();
   game.pendingIncoming = null;
   game.pendingOutgoing = false;
   game.current = "black";
@@ -3410,6 +3434,7 @@ function declineGomokuInvite() {
     return;
   }
 
+  clearGomokuInviteTimer();
   if (game.pendingIncoming && state.socket?.connected) {
     state.socket.emit("game:decline", { gameId, game: "gomoku" });
   }
@@ -3425,6 +3450,7 @@ function receiveGomokuAccepted({ from, gameId }) {
     return;
   }
 
+  clearGomokuInviteTimer();
   game.active = true;
   game.pendingOutgoing = false;
   game.opponentName = from?.displayName || "对方";
@@ -3441,6 +3467,7 @@ function receiveGomokuDeclined({ gameId }) {
     return;
   }
 
+  clearGomokuInviteTimer();
   state.gomoku = createGomokuState();
   renderGomoku();
   updateGomokuStatus("对方已拒绝五子棋邀请");
@@ -3516,7 +3543,7 @@ function undoLastGomokuMove() {
   renderGomoku();
 }
 
-function resetGomokuGame() {
+function resetGomokuGame(myColor = null) {
   const current = ensureGomokuState();
 
   if (!current.active) {
@@ -3526,7 +3553,7 @@ function resetGomokuGame() {
   state.gomoku = createGomokuState({
     gameId: current.gameId,
     active: true,
-    myColor: current.myColor,
+    myColor: myColor || current.myColor,
     opponentName: current.opponentName,
     current: "black",
   });
@@ -3566,7 +3593,7 @@ function acceptGomokuReset() {
   const gameId = game.gameId;
   game.pendingResetIncoming = null;
   state.socket.emit("game:reset-accept", { gameId, game: "gomoku" });
-  resetGomokuGame();
+  resetGomokuGame("white");
 }
 
 function acceptGomokuUndo() {
@@ -3611,7 +3638,7 @@ function receiveGomokuResetAccepted({ gameId }) {
     return;
   }
 
-  resetGomokuGame();
+  resetGomokuGame("black");
 }
 
 function receiveGomokuUndoAccepted({ gameId }) {
