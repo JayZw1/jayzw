@@ -1631,12 +1631,20 @@ button.attachment {
   gap: 8px;
 }
 
-.diary-form input,
-.diary-form button {
-  height: 40px;
+.diary-form textarea {
+  width: 100%;
+  min-height: 48px;
+  max-height: 96px;
+  resize: none;
+  overflow-y: auto;
+  line-height: 1.45;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  white-space: pre-wrap;
 }
 
 .diary-form button {
+  min-height: 48px;
   padding: 0;
 }
 
@@ -2736,6 +2744,7 @@ button.attachment {
 
   .food-form input,
   .food-form button,
+  .diary-form textarea,
   .message-search-form input,
   .message-search-form select,
   .schedule-form input,

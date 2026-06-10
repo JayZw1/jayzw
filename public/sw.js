@@ -1,9 +1,9 @@
-const CACHE_NAME = "private-chat-shell-v21";
+const CACHE_NAME = "private-chat-shell-v22";
 const SHELL_TIMEOUT_MS = 1200;
 const STATIC_ASSETS = [
   "/",
-  "/styles.css?v=20260610-tetris-modes",
-  "/app.js?v=20260610-relative-message-time",
+  "/styles.css?v=20260610-diary-textarea",
+  "/app.js?v=20260610-diary-textarea",
   "/manifest.webmanifest",
   "/icons/icon-192.png",
   "/icons/icon-512.png",

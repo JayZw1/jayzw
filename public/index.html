@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-    <link rel="stylesheet" href="/styles.css?v=20260610-tetris-modes" />
+    <link rel="stylesheet" href="/styles.css?v=20260610-diary-textarea" />
   </head>
   <body>
     <main class="shell">
@@ -249,7 +249,7 @@
             <div class="diary-calendar-grid" id="diaryCalendarGrid"></div>
           </div>
           <form class="diary-form" id="diaryForm">
-            <input id="diaryInput" maxlength="120" placeholder="写下今天和对方有关的最开心的事" required />
+            <textarea id="diaryInput" maxlength="120" placeholder="写下今天和对方有关的最开心的事" required></textarea>
             <button type="submit">保存</button>
           </form>
           <p class="diary-selected-date" id="diarySelectedDate"></p>
@@ -401,6 +401,6 @@
     </main>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="/app.js?v=20260610-relative-message-time"></script>
+    <script src="/app.js?v=20260610-diary-textarea"></script>
   </body>
 </html>
