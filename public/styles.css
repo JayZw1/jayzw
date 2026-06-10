@@ -1192,79 +1192,90 @@ button.attachment {
 }
 
 .gomoku-banter {
-  display: grid;
-  gap: 8px;
+  position: relative;
+  display: flex;
+  justify-content: center;
   min-width: 0;
 }
 
-.gomoku-banter-feed {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-height: 0;
-  max-height: 96px;
-  overflow-y: auto;
-  padding-right: 2px;
-}
-
-.gomoku-banter-bubble {
-  display: grid;
-  gap: 2px;
-  max-width: 86%;
+.gomoku-banter-float {
+  position: absolute;
+  z-index: 3;
+  top: 38px;
+  max-width: min(92%, 460px);
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #f9fafb;
+  background: rgba(255, 255, 255, 0.96);
   color: var(--text);
-  line-height: 1.35;
-  padding: 7px 9px;
-}
-
-.gomoku-banter-bubble.mine {
-  justify-self: end;
-  border-color: rgba(37, 99, 235, 0.22);
-  background: #eff6ff;
-}
-
-.gomoku-banter-bubble.theirs {
-  justify-self: start;
-}
-
-.gomoku-banter-bubble strong {
-  color: var(--muted);
-  font-size: 10px;
-}
-
-.gomoku-banter-bubble span {
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
   font-size: 12px;
+  line-height: 1.45;
+  padding: 8px 10px;
+  pointer-events: none;
+  text-align: center;
+}
+
+.gomoku-banter-float.mine {
+  border-color: rgba(37, 99, 235, 0.22);
+  background: rgba(239, 246, 255, 0.98);
+}
+
+.gomoku-banter-float.theirs {
+  border-color: rgba(148, 163, 184, 0.55);
 }
 
 .gomoku-banter-actions {
-  display: grid;
-  gap: 6px;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
 }
 
 .gomoku-banter-group {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  min-width: 0;
-  overflow-x: auto;
-  padding-bottom: 2px;
+  position: relative;
 }
 
-.gomoku-banter-group > span {
-  flex: 0 0 auto;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.gomoku-banter-group button {
-  flex: 0 0 auto;
-  width: 50px;
+.gomoku-banter-trigger {
+  width: 72px;
   height: 26px;
   padding: 0;
   font-size: 11px;
+}
+
+.gomoku-banter-menu {
+  position: absolute;
+  z-index: 4;
+  top: 31px;
+  left: 50%;
+  display: grid;
+  width: min(300px, 82vw);
+  max-height: 170px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 16px 38px rgba(15, 23, 42, 0.18);
+  padding: 6px;
+  transform: translateX(-50%);
+}
+
+.gomoku-banter-menu button {
+  width: 100%;
+  height: auto;
+  min-height: 34px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  padding: 7px 8px;
+  text-align: left;
+  white-space: normal;
+}
+
+.gomoku-banter-menu button:hover {
+  background: #f3f4f6;
 }
 
 .gomoku-board {
@@ -2505,23 +2516,24 @@ button.attachment {
     width: 38px;
   }
 
-  .gomoku-banter-feed {
-    max-height: 76px;
-  }
-
-  .gomoku-banter-bubble {
-    max-width: 92%;
-    padding: 6px 8px;
-  }
-
-  .gomoku-banter-bubble span {
+  .gomoku-banter-float {
+    top: 34px;
     font-size: 11px;
   }
 
-  .gomoku-banter-group button {
-    width: 44px;
+  .gomoku-banter-trigger {
+    width: 64px;
     height: 24px;
     font-size: 10px;
+  }
+
+  .gomoku-banter-menu {
+    width: min(300px, 90vw);
+    max-height: 148px;
+  }
+
+  .gomoku-banter-menu button {
+    font-size: 11px;
   }
 
   .diary-calendar {

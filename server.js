@@ -1087,6 +1087,7 @@ io.use((socket, next) => {
 });
 
 io.on("connection", (socket) => {
+  let lastGameBanterAt = 0;
   const userSockets = onlineSocketsByUser.get(socket.user.id) || new Set();
   userSockets.add(socket.id);
   onlineSocketsByUser.set(socket.user.id, userSockets);
@@ -1241,11 +1242,18 @@ io.on("connection", (socket) => {
   });
 
   socket.on("game:banter", (payload) => {
+    const now = Date.now();
     const text = String(payload?.text || "").trim();
 
     if (!text || text.length > 80) {
       return;
     }
+
+    if (now - lastGameBanterAt < 4000) {
+      return;
+    }
+
+    lastGameBanterAt = now;
 
     socket.broadcast.emit("game:banter", {
       from: publicUser(socket.user),

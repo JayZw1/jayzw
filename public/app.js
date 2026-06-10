@@ -26,7 +26,7 @@ const GOMOKU_SIZE = 15;
 const GOMOKU_TURN_SECONDS = 20;
 const GOMOKU_BANTER = {
   tease: {
-    label: "挑衅",
+    label: "挑衅句",
     lines: [
       "哎呀，不小心又堵了你一条路，我真不是故意的～",
       "你的棋路像我奶奶织的毛衣——全是洞。",
@@ -35,7 +35,7 @@ const GOMOKU_BANTER = {
     ],
   },
   cheer: {
-    label: "鼓励",
+    label: "鼓励句",
     lines: [
       "没关系，人生那么长，你总会赢我一次的……大概。",
       "比赛结束无论胜负，亲一下就好 👄",
@@ -111,7 +111,7 @@ const undoGomokuButton = document.querySelector("#undoGomokuButton");
 const resetGomokuButton = document.querySelector("#resetGomokuButton");
 const gomokuStatus = document.querySelector("#gomokuStatus");
 const gomokuBoard = document.querySelector("#gomokuBoard");
-const gomokuBanterFeed = document.querySelector("#gomokuBanterFeed");
+const gomokuBanterBubble = document.querySelector("#gomokuBanterBubble");
 const gomokuBanterActions = document.querySelector("#gomokuBanterActions");
 const messageSearchButton = document.querySelector("#messageSearchButton");
 const messageSearchPanel = document.querySelector("#messageSearchPanel");
@@ -204,6 +204,8 @@ let savedStatusText = "";
 let lastResumeRefreshAt = 0;
 let gomokuInviteTimer = null;
 let gomokuTurnTimer = null;
+let gomokuBanterTimer = null;
+let gomokuBanterCooldownUntil = 0;
 const isIOSLike = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 const EMOJIS = [
   "😀",
@@ -3121,7 +3123,6 @@ function createGomokuState(overrides = {}) {
     winner: null,
     draw: false,
     moves: [],
-    banter: [],
     opponentName: "对方",
     opponentInPanel: false,
     turnEndsAt: null,
@@ -3250,61 +3251,76 @@ function updateGomokuStatus(text) {
 }
 
 function renderGomokuBanter() {
-  if (!gomokuBanterFeed || !gomokuBanterActions) {
+  if (!gomokuBanterActions) {
     return;
   }
 
-  const game = ensureGomokuState();
-  gomokuBanterFeed.innerHTML = "";
-
-  for (const item of game.banter.slice(-3)) {
-    const bubble = document.createElement("div");
-    bubble.className = `gomoku-banter-bubble ${item.mine ? "mine" : "theirs"}`;
-    const name = document.createElement("strong");
-    name.textContent = item.senderName || (item.mine ? "我" : "对方");
-    const text = document.createElement("span");
-    text.textContent = item.text;
-    bubble.append(name, text);
-    gomokuBanterFeed.append(bubble);
-  }
-
+  const cooling = Date.now() < gomokuBanterCooldownUntil;
   gomokuBanterActions.innerHTML = "";
   for (const [type, group] of Object.entries(GOMOKU_BANTER)) {
     const section = document.createElement("div");
     section.className = "gomoku-banter-group";
-    const title = document.createElement("span");
-    title.textContent = group.label;
-    section.append(title);
+    const trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = "ghost gomoku-banter-trigger";
+    trigger.textContent = cooling ? "冷却中" : group.label;
+    trigger.disabled = cooling;
+    section.append(trigger);
+
+    const menu = document.createElement("div");
+    menu.className = "gomoku-banter-menu hidden";
 
     group.lines.forEach((line, index) => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "ghost";
-      button.textContent = `${group.label}${index + 1}`;
-      button.title = line;
-      button.addEventListener("click", () => sendGomokuBanter(type, line));
-      section.append(button);
+      button.textContent = line;
+      button.disabled = cooling;
+      button.addEventListener("click", () => {
+        menu.classList.add("hidden");
+        sendGomokuBanter(type, line);
+      });
+      menu.append(button);
     });
 
+    trigger.addEventListener("click", () => {
+      if (cooling) {
+        return;
+      }
+
+      gomokuBanterActions.querySelectorAll(".gomoku-banter-menu").forEach((currentMenu) => {
+        if (currentMenu !== menu) {
+          currentMenu.classList.add("hidden");
+        }
+      });
+      menu.classList.toggle("hidden");
+    });
+
+    section.append(menu);
     gomokuBanterActions.append(section);
   }
 }
 
-function appendGomokuBanter({ from, text }) {
-  const game = ensureGomokuState();
+function showGomokuBanterBubble({ from, text }) {
   const cleanText = String(text || "").trim();
 
-  if (!cleanText) {
+  if (!cleanText || !gomokuBanterBubble) {
     return;
   }
 
-  game.banter.push({
-    mine: from?.id === state.user?.id,
-    senderName: from?.displayName || (from?.id === state.user?.id ? "我" : "对方"),
-    text: cleanText,
-  });
-  game.banter = game.banter.slice(-8);
+  clearTimeout(gomokuBanterTimer);
+  gomokuBanterBubble.className = `gomoku-banter-float ${from?.id === state.user?.id ? "mine" : "theirs"}`;
+  gomokuBanterBubble.textContent = cleanText;
+  gomokuBanterBubble.classList.remove("hidden");
+  gomokuBanterTimer = setTimeout(() => {
+    gomokuBanterBubble.classList.add("hidden");
+  }, 4000);
+}
+
+function setGomokuBanterCooldown() {
+  gomokuBanterCooldownUntil = Date.now() + 4000;
   renderGomokuBanter();
+  setTimeout(renderGomokuBanter, 4100);
 }
 
 function sendGomokuBanter(type, text) {
@@ -3315,7 +3331,13 @@ function sendGomokuBanter(type, text) {
     return;
   }
 
-  appendGomokuBanter({ from: state.user, text: cleanText });
+  if (Date.now() < gomokuBanterCooldownUntil) {
+    showGomokuBanterBubble({ from: state.user, text: "等一下，话语冷却中" });
+    return;
+  }
+
+  setGomokuBanterCooldown();
+  showGomokuBanterBubble({ from: state.user, text: cleanText });
   state.socket?.emit("game:banter", {
     game: "gomoku",
     gameId: game.gameId || "",
@@ -3743,7 +3765,7 @@ function receiveGomokuBanter({ from, gameId, text }) {
     return;
   }
 
-  appendGomokuBanter({ from, text });
+  showGomokuBanterBubble({ from, text });
 }
 
 function requestGomokuReset() {
