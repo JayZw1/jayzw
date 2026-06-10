@@ -1211,6 +1211,54 @@ io.on("connection", (socket) => {
     });
   });
 
+  socket.on("game:reset-request", (payload) => {
+    socket.broadcast.emit("game:reset-request", {
+      from: publicUser(socket.user),
+      game: "gomoku",
+      gameId: String(payload?.gameId || ""),
+    });
+  });
+
+  socket.on("game:reset-accept", (payload) => {
+    socket.broadcast.emit("game:reset-accept", {
+      from: publicUser(socket.user),
+      game: "gomoku",
+      gameId: String(payload?.gameId || ""),
+    });
+  });
+
+  socket.on("game:reset-decline", (payload) => {
+    socket.broadcast.emit("game:reset-decline", {
+      from: publicUser(socket.user),
+      game: "gomoku",
+      gameId: String(payload?.gameId || ""),
+    });
+  });
+
+  socket.on("game:undo-request", (payload) => {
+    socket.broadcast.emit("game:undo-request", {
+      from: publicUser(socket.user),
+      game: "gomoku",
+      gameId: String(payload?.gameId || ""),
+    });
+  });
+
+  socket.on("game:undo-accept", (payload) => {
+    socket.broadcast.emit("game:undo-accept", {
+      from: publicUser(socket.user),
+      game: "gomoku",
+      gameId: String(payload?.gameId || ""),
+    });
+  });
+
+  socket.on("game:undo-decline", (payload) => {
+    socket.broadcast.emit("game:undo-decline", {
+      from: publicUser(socket.user),
+      game: "gomoku",
+      gameId: String(payload?.gameId || ""),
+    });
+  });
+
   socket.on("call:offer", (payload) => {
     socket.broadcast.emit("call:offer", {
       from: publicUser(socket.user),

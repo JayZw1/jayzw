@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-    <link rel="stylesheet" href="/styles.css?v=20260610-gomoku-invite" />
+    <link rel="stylesheet" href="/styles.css?v=20260610-gomoku-consent" />
   </head>
   <body>
     <main class="shell">
@@ -273,7 +273,10 @@
           </div>
           <div class="gomoku-toolbar">
             <span id="gomokuStatus">点击邀请对方开始五子棋</span>
-            <button class="ghost" id="resetGomokuButton" type="button">重开</button>
+            <div class="gomoku-actions">
+              <button class="ghost" id="undoGomokuButton" type="button">悔棋</button>
+              <button class="ghost" id="resetGomokuButton" type="button">重开</button>
+            </div>
           </div>
           <div class="gomoku-board" id="gomokuBoard" aria-label="五子棋棋盘"></div>
         </div>
@@ -353,6 +356,6 @@
     </main>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="/app.js?v=20260610-gomoku-invite"></script>
+    <script src="/app.js?v=20260610-gomoku-consent"></script>
   </body>
 </html>

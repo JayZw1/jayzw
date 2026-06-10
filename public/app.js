@@ -82,6 +82,7 @@ const closeGameButton = document.querySelector("#closeGameButton");
 const inviteGomokuButton = document.querySelector("#inviteGomokuButton");
 const acceptGomokuButton = document.querySelector("#acceptGomokuButton");
 const declineGomokuButton = document.querySelector("#declineGomokuButton");
+const undoGomokuButton = document.querySelector("#undoGomokuButton");
 const resetGomokuButton = document.querySelector("#resetGomokuButton");
 const gomokuStatus = document.querySelector("#gomokuStatus");
 const gomokuBoard = document.querySelector("#gomokuBoard");
@@ -3082,10 +3083,15 @@ function createGomokuState(overrides = {}) {
     active: false,
     pendingIncoming: null,
     pendingOutgoing: false,
+    pendingResetIncoming: null,
+    pendingResetOutgoing: false,
+    pendingUndoIncoming: null,
+    pendingUndoOutgoing: false,
     myColor: null,
     current: "black",
     winner: null,
     draw: false,
+    moves: [],
     opponentName: "对方",
     ...overrides,
   };
@@ -3120,15 +3126,31 @@ function updateGomokuStatus(text) {
 }
 
 function renderGomokuInviteControls(game) {
-  if (!inviteGomokuButton || !acceptGomokuButton || !declineGomokuButton || !resetGomokuButton) {
+  if (!inviteGomokuButton || !acceptGomokuButton || !declineGomokuButton || !resetGomokuButton || !undoGomokuButton) {
     return;
   }
 
-  const hasIncoming = Boolean(game.pendingIncoming);
-  inviteGomokuButton.classList.toggle("hidden", hasIncoming || game.pendingOutgoing || game.active);
-  acceptGomokuButton.classList.toggle("hidden", !hasIncoming);
-  declineGomokuButton.classList.toggle("hidden", !hasIncoming);
-  resetGomokuButton.disabled = !game.active;
+  const hasChoice = Boolean(game.pendingIncoming || game.pendingResetIncoming || game.pendingUndoIncoming);
+  inviteGomokuButton.classList.toggle("hidden", hasChoice || game.pendingOutgoing || game.active);
+  acceptGomokuButton.classList.toggle("hidden", !hasChoice);
+  declineGomokuButton.classList.toggle("hidden", !hasChoice);
+  acceptGomokuButton.textContent = game.pendingResetIncoming ? "同意重开" : game.pendingUndoIncoming ? "同意悔棋" : "接受";
+  declineGomokuButton.textContent = game.pendingResetIncoming ? "拒绝重开" : game.pendingUndoIncoming ? "拒绝悔棋" : "拒绝";
+  resetGomokuButton.disabled =
+    !game.active ||
+    game.pendingResetOutgoing ||
+    game.pendingResetIncoming ||
+    game.pendingUndoOutgoing ||
+    game.pendingUndoIncoming;
+  undoGomokuButton.disabled =
+    !game.active ||
+    !game.moves.length ||
+    game.winner ||
+    game.draw ||
+    game.pendingUndoOutgoing ||
+    game.pendingUndoIncoming ||
+    game.pendingResetOutgoing ||
+    game.pendingResetIncoming;
 }
 
 function getGomokuStatusText(game) {
@@ -3136,8 +3158,24 @@ function getGomokuStatusText(game) {
     return `${game.pendingIncoming.from.displayName || "对方"} 邀请你五子棋`;
   }
 
+  if (game.pendingResetIncoming) {
+    return `${game.pendingResetIncoming.from.displayName || "对方"} 请求重开，是否同意？`;
+  }
+
+  if (game.pendingUndoIncoming) {
+    return `${game.pendingUndoIncoming.from.displayName || "对方"} 请求悔棋，是否同意？`;
+  }
+
   if (game.pendingOutgoing) {
     return "已发送邀请，等待对方接受";
+  }
+
+  if (game.pendingResetOutgoing) {
+    return "已发送重开申请，等待对方同意";
+  }
+
+  if (game.pendingUndoOutgoing) {
+    return "已发送悔棋申请，等待对方同意";
   }
 
   if (!game.active) {
@@ -3179,10 +3217,24 @@ function renderGomoku() {
       cell.addEventListener("click", () => placeGomokuStone(row, col));
       if (color) {
         cell.append(document.createElement("span"));
+      } else if (isGomokuStarPoint(row, col)) {
+        const star = document.createElement("span");
+        star.className = "gomoku-star";
+        cell.append(star);
       }
       gomokuBoard.append(cell);
     }
   }
+}
+
+function isGomokuStarPoint(row, col) {
+  return (
+    (row === 3 && col === 3) ||
+    (row === 3 && col === 11) ||
+    (row === 7 && col === 7) ||
+    (row === 11 && col === 3) ||
+    (row === 11 && col === 11)
+  );
 }
 
 function canPlaceGomokuStone(game, row, col) {
@@ -3244,6 +3296,7 @@ function applyGomokuMove({ row, col, color }) {
   }
 
   game.board[row][col] = color;
+  game.moves.push({ row, col, color });
   if (hasGomokuWinner(game.board, row, col, color)) {
     game.winner = color;
   } else if (isGomokuBoardFull(game.board)) {
@@ -3319,6 +3372,16 @@ function receiveGomokuInvite({ from, gameId }) {
 function acceptGomokuInvite() {
   const game = ensureGomokuState();
 
+  if (game.pendingResetIncoming) {
+    acceptGomokuReset();
+    return;
+  }
+
+  if (game.pendingUndoIncoming) {
+    acceptGomokuUndo();
+    return;
+  }
+
   if (!game.pendingIncoming || !state.socket?.connected) {
     return;
   }
@@ -3336,6 +3399,16 @@ function acceptGomokuInvite() {
 function declineGomokuInvite() {
   const game = ensureGomokuState();
   const gameId = game.gameId;
+
+  if (game.pendingResetIncoming) {
+    declineGomokuReset();
+    return;
+  }
+
+  if (game.pendingUndoIncoming) {
+    declineGomokuUndo();
+    return;
+  }
 
   if (game.pendingIncoming && state.socket?.connected) {
     state.socket.emit("game:decline", { gameId, game: "gomoku" });
@@ -3383,7 +3456,67 @@ function receiveGomokuMove(payload) {
   applyGomokuMove(payload);
 }
 
-function resetGomokuGame(shouldEmit = true) {
+function requestGomokuReset() {
+  const game = ensureGomokuState();
+
+  if (!game.active || game.pendingUndoOutgoing || game.pendingUndoIncoming || game.pendingResetOutgoing || game.pendingResetIncoming) {
+    return;
+  }
+
+  if (!state.socket?.connected) {
+    updateGomokuStatus("实时连接未恢复，暂时不能申请重开");
+    return;
+  }
+
+  game.pendingResetOutgoing = true;
+  renderGomoku();
+  state.socket.emit("game:reset-request", { gameId: game.gameId, game: "gomoku" });
+}
+
+function requestGomokuUndo() {
+  const game = ensureGomokuState();
+
+  if (
+    !game.active ||
+    !game.moves.length ||
+    game.winner ||
+    game.draw ||
+    game.pendingUndoOutgoing ||
+    game.pendingUndoIncoming ||
+    game.pendingResetOutgoing ||
+    game.pendingResetIncoming
+  ) {
+    return;
+  }
+
+  if (!state.socket?.connected) {
+    updateGomokuStatus("实时连接未恢复，暂时不能申请悔棋");
+    return;
+  }
+
+  game.pendingUndoOutgoing = true;
+  renderGomoku();
+  state.socket.emit("game:undo-request", { gameId: game.gameId, game: "gomoku" });
+}
+
+function undoLastGomokuMove() {
+  const game = ensureGomokuState();
+  const lastMove = game.moves.pop();
+
+  if (!lastMove) {
+    return;
+  }
+
+  game.board[lastMove.row][lastMove.col] = null;
+  game.current = lastMove.color;
+  game.winner = null;
+  game.draw = false;
+  game.pendingUndoIncoming = null;
+  game.pendingUndoOutgoing = false;
+  renderGomoku();
+}
+
+function resetGomokuGame() {
   const current = ensureGomokuState();
 
   if (!current.active) {
@@ -3399,21 +3532,120 @@ function resetGomokuGame(shouldEmit = true) {
   });
 
   renderGomoku();
-
-  if (shouldEmit) {
-    state.socket?.emit("game:reset", { gameId: state.gomoku.gameId, game: "gomoku" });
-  }
 }
 
-function receiveGomokuReset({ gameId }) {
+function receiveGomokuResetRequest({ from, gameId }) {
   const game = ensureGomokuState();
 
-  if (!gameId || game.gameId !== gameId || !game.active) {
+  if (!gameId || game.gameId !== gameId || !game.active || from?.id === state.user?.id) {
     return;
   }
 
-  resetGomokuGame(false);
-  updateGomokuStatus("对方已重开，黑棋先手");
+  game.pendingResetIncoming = { from };
+  renderGomoku();
+}
+
+function receiveGomokuUndoRequest({ from, gameId }) {
+  const game = ensureGomokuState();
+
+  if (!gameId || game.gameId !== gameId || !game.active || !game.moves.length || from?.id === state.user?.id) {
+    return;
+  }
+
+  game.pendingUndoIncoming = { from };
+  renderGomoku();
+}
+
+function acceptGomokuReset() {
+  const game = ensureGomokuState();
+
+  if (!game.pendingResetIncoming || !state.socket?.connected) {
+    return;
+  }
+
+  const gameId = game.gameId;
+  game.pendingResetIncoming = null;
+  state.socket.emit("game:reset-accept", { gameId, game: "gomoku" });
+  resetGomokuGame();
+}
+
+function acceptGomokuUndo() {
+  const game = ensureGomokuState();
+
+  if (!game.pendingUndoIncoming || !state.socket?.connected) {
+    return;
+  }
+
+  const gameId = game.gameId;
+  game.pendingUndoIncoming = null;
+  state.socket.emit("game:undo-accept", { gameId, game: "gomoku" });
+  undoLastGomokuMove();
+}
+
+function declineGomokuReset() {
+  const game = ensureGomokuState();
+
+  if (game.pendingResetIncoming && state.socket?.connected) {
+    state.socket.emit("game:reset-decline", { gameId: game.gameId, game: "gomoku" });
+  }
+
+  game.pendingResetIncoming = null;
+  renderGomoku();
+}
+
+function declineGomokuUndo() {
+  const game = ensureGomokuState();
+
+  if (game.pendingUndoIncoming && state.socket?.connected) {
+    state.socket.emit("game:undo-decline", { gameId: game.gameId, game: "gomoku" });
+  }
+
+  game.pendingUndoIncoming = null;
+  renderGomoku();
+}
+
+function receiveGomokuResetAccepted({ gameId }) {
+  const game = ensureGomokuState();
+
+  if (!gameId || game.gameId !== gameId || !game.pendingResetOutgoing) {
+    return;
+  }
+
+  resetGomokuGame();
+}
+
+function receiveGomokuUndoAccepted({ gameId }) {
+  const game = ensureGomokuState();
+
+  if (!gameId || game.gameId !== gameId || !game.pendingUndoOutgoing) {
+    return;
+  }
+
+  undoLastGomokuMove();
+}
+
+function receiveGomokuResetDeclined({ gameId }) {
+  const game = ensureGomokuState();
+
+  if (!gameId || game.gameId !== gameId || !game.pendingResetOutgoing) {
+    return;
+  }
+
+  game.pendingResetOutgoing = false;
+  renderGomoku();
+  updateGomokuStatus("对方拒绝重开，继续当前棋局");
+}
+
+function receiveGomokuUndoDeclined({ gameId }) {
+  const game = ensureGomokuState();
+
+  if (!gameId || game.gameId !== gameId || !game.pendingUndoOutgoing) {
+    return;
+  }
+
+  game.pendingUndoOutgoing = false;
+  renderGomoku();
+  updateGomokuStatus("对方拒绝悔棋，继续当前棋局");
 }
 
 function scrollToMessage(messageId) {
@@ -3549,7 +3781,12 @@ function connectSocket() {
   state.socket.on("game:accept", receiveGomokuAccepted);
   state.socket.on("game:decline", receiveGomokuDeclined);
   state.socket.on("game:move", receiveGomokuMove);
-  state.socket.on("game:reset", receiveGomokuReset);
+  state.socket.on("game:reset-request", receiveGomokuResetRequest);
+  state.socket.on("game:reset-accept", receiveGomokuResetAccepted);
+  state.socket.on("game:reset-decline", receiveGomokuResetDeclined);
+  state.socket.on("game:undo-request", receiveGomokuUndoRequest);
+  state.socket.on("game:undo-accept", receiveGomokuUndoAccepted);
+  state.socket.on("game:undo-decline", receiveGomokuUndoDeclined);
   state.socket.on("call:offer", receiveCall);
   state.socket.on("call:answer", applyAnswer);
   state.socket.on("call:ice", applyIce);
@@ -3868,7 +4105,8 @@ closeGameButton?.addEventListener("click", closeGamePanel);
 inviteGomokuButton?.addEventListener("click", inviteGomokuGame);
 acceptGomokuButton?.addEventListener("click", acceptGomokuInvite);
 declineGomokuButton?.addEventListener("click", declineGomokuInvite);
-resetGomokuButton?.addEventListener("click", () => resetGomokuGame(true));
+undoGomokuButton?.addEventListener("click", requestGomokuUndo);
+resetGomokuButton?.addEventListener("click", requestGomokuReset);
 prevDiaryMonthButton?.addEventListener("click", () => {
   state.diaryVisibleMonth = shiftMonth(state.diaryVisibleMonth, -1);
   syncDiarySelectedDateToMonth();

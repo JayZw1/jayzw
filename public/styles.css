@@ -1142,6 +1142,12 @@ button.attachment {
   justify-content: space-between;
 }
 
+.gomoku-actions {
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
 .gomoku-toolbar span {
   min-width: 0;
   color: var(--text);
@@ -1242,6 +1248,12 @@ button.attachment {
   border: 1px solid #cbd5e1;
   background: radial-gradient(circle at 35% 30%, #fff, #e5e7eb 74%);
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+}
+
+.gomoku-cell .gomoku-star {
+  width: 18%;
+  background: rgba(92, 56, 16, 0.78);
+  box-shadow: none;
 }
 
 .diary-calendar {
@@ -2385,6 +2397,10 @@ button.attachment {
   .gomoku-toolbar button {
     height: 30px;
     font-size: 12px;
+  }
+
+  .gomoku-toolbar button {
+    width: 44px;
   }
 
   .diary-calendar {
