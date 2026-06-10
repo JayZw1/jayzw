@@ -3251,7 +3251,7 @@ function renderGomokuInviteControls(game) {
     game.pendingUndoIncoming;
   undoGomokuButton.disabled =
     !game.active ||
-    !game.moves.length ||
+    !canRequestGomokuUndo(game) ||
     game.winner ||
     game.draw ||
     game.pendingUndoOutgoing ||
@@ -3262,6 +3262,15 @@ function renderGomokuInviteControls(game) {
   if (gomokuCloseConfirm) {
     gomokuCloseConfirm.classList.toggle("hidden", !game.closeConfirmVisible);
   }
+}
+
+function getLastGomokuMove(game) {
+  return game.moves[game.moves.length - 1] || null;
+}
+
+function canRequestGomokuUndo(game) {
+  const lastMove = getLastGomokuMove(game);
+  return Boolean(lastMove && lastMove.color === game.myColor);
 }
 
 function getGomokuStatusText(game) {
@@ -3650,7 +3659,7 @@ function requestGomokuUndo() {
 
   if (
     !game.active ||
-    !game.moves.length ||
+    !canRequestGomokuUndo(game) ||
     game.winner ||
     game.draw ||
     game.pendingUndoOutgoing ||
@@ -3722,8 +3731,16 @@ function receiveGomokuResetRequest({ from, gameId }) {
 
 function receiveGomokuUndoRequest({ from, gameId }) {
   const game = ensureGomokuState();
+  const lastMove = getLastGomokuMove(game);
 
-  if (!gameId || game.gameId !== gameId || !game.active || !game.moves.length || from?.id === state.user?.id) {
+  if (
+    !gameId ||
+    game.gameId !== gameId ||
+    !game.active ||
+    !lastMove ||
+    lastMove.color !== (game.myColor === "black" ? "white" : "black") ||
+    from?.id === state.user?.id
+  ) {
     return;
   }
 
