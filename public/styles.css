@@ -1159,7 +1159,7 @@ button.attachment {
 }
 
 .gomoku-toolbar button {
-  width: 56px;
+  width: 52px;
   height: 32px;
   padding: 0;
   flex: 0 0 auto;
@@ -2400,7 +2400,7 @@ button.attachment {
   }
 
   .gomoku-toolbar button {
-    width: 44px;
+    width: 38px;
   }
 
   .diary-calendar {

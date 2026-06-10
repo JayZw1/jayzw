@@ -13,6 +13,7 @@ const state = {
   scheduleItems: [],
   diaryEntries: [],
   expressStatus: { date: todayInputValue(), hasExpress: false },
+  otherOnline: false,
   diarySelectedDate: todayInputValue(),
   diaryVisibleMonth: todayInputValue().slice(0, 7),
   gomoku: null,
@@ -82,6 +83,7 @@ const closeGameButton = document.querySelector("#closeGameButton");
 const inviteGomokuButton = document.querySelector("#inviteGomokuButton");
 const acceptGomokuButton = document.querySelector("#acceptGomokuButton");
 const declineGomokuButton = document.querySelector("#declineGomokuButton");
+const refreshGomokuButton = document.querySelector("#refreshGomokuButton");
 const undoGomokuButton = document.querySelector("#undoGomokuButton");
 const resetGomokuButton = document.querySelector("#resetGomokuButton");
 const gomokuStatus = document.querySelector("#gomokuStatus");
@@ -3147,7 +3149,14 @@ function updateGomokuStatus(text) {
 }
 
 function renderGomokuInviteControls(game) {
-  if (!inviteGomokuButton || !acceptGomokuButton || !declineGomokuButton || !resetGomokuButton || !undoGomokuButton) {
+  if (
+    !inviteGomokuButton ||
+    !acceptGomokuButton ||
+    !declineGomokuButton ||
+    !refreshGomokuButton ||
+    !resetGomokuButton ||
+    !undoGomokuButton
+  ) {
     return;
   }
 
@@ -3157,6 +3166,7 @@ function renderGomokuInviteControls(game) {
   declineGomokuButton.classList.toggle("hidden", !hasChoice);
   acceptGomokuButton.textContent = game.pendingResetIncoming ? "同意重开" : game.pendingUndoIncoming ? "同意悔棋" : "接受";
   declineGomokuButton.textContent = game.pendingResetIncoming ? "拒绝重开" : game.pendingUndoIncoming ? "拒绝悔棋" : "拒绝";
+  refreshGomokuButton.disabled = !canRefreshGomoku(game);
   resetGomokuButton.disabled =
     !game.active ||
     game.pendingResetOutgoing ||
@@ -3246,6 +3256,26 @@ function renderGomoku() {
       gomokuBoard.append(cell);
     }
   }
+}
+
+function canRefreshGomoku(game) {
+  const hasPendingState =
+    game.pendingIncoming ||
+    game.pendingOutgoing ||
+    game.pendingResetIncoming ||
+    game.pendingResetOutgoing ||
+    game.pendingUndoIncoming ||
+    game.pendingUndoOutgoing;
+
+  if (hasPendingState) {
+    return true;
+  }
+
+  if (game.active && !state.otherOnline) {
+    return true;
+  }
+
+  return false;
 }
 
 function isGomokuStarPoint(row, col) {
@@ -3471,6 +3501,35 @@ function receiveGomokuDeclined({ gameId }) {
   state.gomoku = createGomokuState();
   renderGomoku();
   updateGomokuStatus("对方已拒绝五子棋邀请");
+}
+
+function refreshGomokuGame(shouldEmit = true, message = "棋盘已刷新，可以重新邀请") {
+  const game = ensureGomokuState();
+  const gameId = game.gameId;
+
+  if (!canRefreshGomoku(game)) {
+    updateGomokuStatus("对方在线时不能直接刷新，请发起重开申请");
+    return;
+  }
+
+  clearGomokuInviteTimer();
+  state.gomoku = createGomokuState();
+  renderGomoku();
+  updateGomokuStatus(message);
+
+  if (shouldEmit && state.socket?.connected && gameId) {
+    state.socket.emit("game:refresh", { gameId, game: "gomoku" });
+  }
+}
+
+function receiveGomokuRefresh({ gameId }) {
+  const game = ensureGomokuState();
+
+  if (!gameId || game.gameId !== gameId) {
+    return;
+  }
+
+  refreshGomokuGame(false, "对方已刷新棋盘");
 }
 
 function receiveGomokuMove(payload) {
@@ -3779,7 +3838,11 @@ function connectSocket() {
 
   state.socket.on("presence", ({ online, users = [] }) => {
     const otherOnline = users.some((user) => user.id && user.id !== state.user?.id);
+    state.otherOnline = otherOnline || online >= 2;
     statusText.textContent = otherOnline || online >= 2 ? "你们都在线" : "已连接，对方未在线";
+    if (state.gomoku) {
+      renderGomoku();
+    }
   });
 
   state.socket.on("message:new", (message) => {
@@ -3807,6 +3870,7 @@ function connectSocket() {
   state.socket.on("game:invite", receiveGomokuInvite);
   state.socket.on("game:accept", receiveGomokuAccepted);
   state.socket.on("game:decline", receiveGomokuDeclined);
+  state.socket.on("game:refresh", receiveGomokuRefresh);
   state.socket.on("game:move", receiveGomokuMove);
   state.socket.on("game:reset-request", receiveGomokuResetRequest);
   state.socket.on("game:reset-accept", receiveGomokuResetAccepted);
@@ -4129,6 +4193,7 @@ closeGameButton?.addEventListener("click", closeGamePanel);
 inviteGomokuButton?.addEventListener("click", inviteGomokuGame);
 acceptGomokuButton?.addEventListener("click", acceptGomokuInvite);
 declineGomokuButton?.addEventListener("click", declineGomokuInvite);
+refreshGomokuButton?.addEventListener("click", () => refreshGomokuGame(true));
 undoGomokuButton?.addEventListener("click", requestGomokuUndo);
 resetGomokuButton?.addEventListener("click", requestGomokuReset);
 prevDiaryMonthButton?.addEventListener("click", () => {

@@ -1184,6 +1184,14 @@ io.on("connection", (socket) => {
     });
   });
 
+  socket.on("game:refresh", (payload) => {
+    socket.broadcast.emit("game:refresh", {
+      from: publicUser(socket.user),
+      game: "gomoku",
+      gameId: String(payload?.gameId || ""),
+    });
+  });
+
   socket.on("game:move", (payload) => {
     const row = Number(payload?.row);
     const col = Number(payload?.col);
