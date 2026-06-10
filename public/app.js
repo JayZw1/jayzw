@@ -555,13 +555,29 @@ async function changePassword(event) {
 
 function formatTime(value) {
   const date = value instanceof Date ? value : new Date(value.endsWith?.("Z") ? value : `${value}Z`);
-
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "2-digit",
-    day: "2-digit",
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const messageStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayDiff = Math.round((todayStart - messageStart) / 86400000);
+  const clock = new Intl.DateTimeFormat("zh-CN", {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
+
+  if (dayDiff === 0) {
+    return `今天 ${clock}`;
+  }
+
+  if (dayDiff === 1) {
+    return `昨天 ${clock}`;
+  }
+
+  const options =
+    date.getFullYear() === now.getFullYear()
+      ? { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }
+      : { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" };
+
+  return new Intl.DateTimeFormat("zh-CN", options).format(date);
 }
 
 function renderMessage(message, options = {}) {
