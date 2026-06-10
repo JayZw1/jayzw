@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-    <link rel="stylesheet" href="/styles.css?v=20260610-gomoku-banter-fix" />
+    <link rel="stylesheet" href="/styles.css?v=20260610-tetris-modes" />
   </head>
   <body>
     <main class="shell">
@@ -264,30 +264,66 @@
             <button class="ghost icon-control" id="closeGameButton" type="button" title="关闭">×</button>
           </div>
           <div class="game-tabs">
-            <button class="active" type="button">五子棋</button>
+            <button class="active" id="gomokuTabButton" type="button">五子棋</button>
+            <button id="tetrisTabButton" type="button">俄罗斯方块</button>
           </div>
-          <div class="gomoku-invite" id="gomokuInviteBar">
-            <button type="button" id="inviteGomokuButton">邀请对战</button>
-            <button class="ghost hidden" type="button" id="acceptGomokuButton">接受</button>
-            <button class="ghost hidden" type="button" id="declineGomokuButton">拒绝</button>
+          <div class="gomoku-view" id="gomokuView">
+            <div class="gomoku-invite" id="gomokuInviteBar">
+              <button type="button" id="inviteGomokuButton">邀请对战</button>
+              <button class="ghost hidden" type="button" id="acceptGomokuButton">接受</button>
+              <button class="ghost hidden" type="button" id="declineGomokuButton">拒绝</button>
+            </div>
+            <div class="gomoku-close-confirm hidden" id="gomokuCloseConfirm">
+              <span>确定退出五子棋？</span>
+              <button class="ghost" id="cancelCloseGameButton" type="button">取消</button>
+              <button id="confirmCloseGameButton" type="button">确定</button>
+            </div>
+            <div class="gomoku-toolbar">
+              <span id="gomokuStatus">点击邀请对方开始五子棋</span>
+              <div class="gomoku-actions">
+                <button class="ghost" id="undoGomokuButton" type="button">悔棋</button>
+                <button class="ghost" id="resetGomokuButton" type="button">重开</button>
+              </div>
+            </div>
+            <div class="gomoku-banter">
+              <div class="gomoku-banter-float hidden" id="gomokuBanterBubble"></div>
+              <div class="gomoku-banter-actions" id="gomokuBanterActions"></div>
+            </div>
+            <div class="gomoku-board" id="gomokuBoard" aria-label="五子棋棋盘"></div>
           </div>
-          <div class="gomoku-close-confirm hidden" id="gomokuCloseConfirm">
-            <span>确定退出五子棋？</span>
-            <button class="ghost" id="cancelCloseGameButton" type="button">取消</button>
-            <button id="confirmCloseGameButton" type="button">确定</button>
-          </div>
-          <div class="gomoku-toolbar">
-            <span id="gomokuStatus">点击邀请对方开始五子棋</span>
-            <div class="gomoku-actions">
-              <button class="ghost" id="undoGomokuButton" type="button">悔棋</button>
-              <button class="ghost" id="resetGomokuButton" type="button">重开</button>
+          <div class="tetris-view hidden" id="tetrisView">
+            <div class="tetris-toolbar">
+              <button type="button" data-tetris-mode="solo">单人</button>
+              <button class="ghost" type="button" data-tetris-mode="pk">双人PK</button>
+              <button class="ghost" type="button" data-tetris-mode="coop">双人合作</button>
+            </div>
+            <div class="tetris-status" id="tetrisStatus">选择一个模式开始俄罗斯方块</div>
+            <div class="tetris-layout">
+              <div class="tetris-board-wrap">
+                <div class="tetris-board" id="tetrisBoard"></div>
+                <div class="tetris-controls">
+                  <button type="button" data-tetris-action="left">左</button>
+                  <button type="button" data-tetris-action="rotate">旋转</button>
+                  <button type="button" data-tetris-action="right">右</button>
+                  <button type="button" data-tetris-action="down">下落</button>
+                </div>
+              </div>
+              <div class="tetris-side">
+                <div class="tetris-score-card">
+                  <strong>我的分数</strong>
+                  <span id="tetrisScore">0</span>
+                </div>
+                <div class="tetris-score-card">
+                  <strong>对方分数</strong>
+                  <span id="tetrisPeerScore">0</span>
+                </div>
+                <div class="tetris-rank">
+                  <strong>历史最高排名</strong>
+                  <div id="tetrisRanking">暂无记录</div>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="gomoku-banter">
-            <div class="gomoku-banter-float hidden" id="gomokuBanterBubble"></div>
-            <div class="gomoku-banter-actions" id="gomokuBanterActions"></div>
-          </div>
-          <div class="gomoku-board" id="gomokuBoard" aria-label="五子棋棋盘"></div>
         </div>
       </div>
 
@@ -365,6 +401,6 @@
     </main>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="/app.js?v=20260610-gomoku-banter-fix"></script>
+    <script src="/app.js?v=20260610-tetris-modes"></script>
   </body>
 </html>

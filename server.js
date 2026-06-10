@@ -1312,6 +1312,71 @@ io.on("connection", (socket) => {
     });
   });
 
+  socket.on("game:tetris-start", (payload) => {
+    const mode = payload?.mode === "coop" ? "coop" : "pk";
+    socket.broadcast.emit("game:tetris-start", {
+      from: publicUser(socket.user),
+      game: "tetris",
+      gameId: String(payload?.gameId || ""),
+      mode,
+    });
+  });
+
+  socket.on("game:tetris-input", (payload) => {
+    socket.broadcast.emit("game:tetris-input", {
+      from: publicUser(socket.user),
+      game: "tetris",
+      gameId: String(payload?.gameId || ""),
+      mode: payload?.mode === "coop" ? "coop" : "pk",
+      role: payload?.role === "p2" ? "p2" : "p1",
+      piece: payload?.piece || null,
+      score: Number(payload?.score || 0),
+    });
+  });
+
+  socket.on("game:tetris-lock", (payload) => {
+    const cells = Array.isArray(payload?.cells) ? payload.cells.slice(0, 40) : [];
+    socket.broadcast.emit("game:tetris-lock", {
+      from: publicUser(socket.user),
+      game: "tetris",
+      gameId: String(payload?.gameId || ""),
+      role: payload?.role === "p2" ? "p2" : "p1",
+      cells,
+      score: Number(payload?.score || 0),
+    });
+  });
+
+  socket.on("game:tetris-state", (payload) => {
+    socket.broadcast.emit("game:tetris-state", {
+      from: publicUser(socket.user),
+      game: "tetris",
+      gameId: String(payload?.gameId || ""),
+      mode: payload?.mode === "coop" ? "coop" : "pk",
+      role: payload?.role === "p2" ? "p2" : "p1",
+      score: Number(payload?.score || 0),
+    });
+  });
+
+  socket.on("game:tetris-over", (payload) => {
+    socket.broadcast.emit("game:tetris-over", {
+      from: publicUser(socket.user),
+      game: "tetris",
+      gameId: String(payload?.gameId || ""),
+      mode: payload?.mode === "coop" ? "coop" : "pk",
+      score: Number(payload?.score || 0),
+      reason: String(payload?.reason || "dead").slice(0, 32),
+    });
+  });
+
+  socket.on("game:tetris-score", (payload) => {
+    socket.broadcast.emit("game:tetris-score", {
+      from: publicUser(socket.user),
+      game: "tetris",
+      mode: payload?.mode === "pk" ? "pk" : payload?.mode === "coop" ? "coop" : "solo",
+      score: Number(payload?.score || 0),
+    });
+  });
+
   socket.on("call:offer", (payload) => {
     socket.broadcast.emit("call:offer", {
       from: publicUser(socket.user),

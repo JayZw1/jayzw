@@ -17,6 +17,7 @@ const state = {
   diarySelectedDate: todayInputValue(),
   diaryVisibleMonth: todayInputValue().slice(0, 7),
   gomoku: null,
+  tetris: null,
   bottomSettleUntil: 0,
 };
 
@@ -24,6 +25,37 @@ const DIARY_MIN_DATE = "2025-01-01";
 const DIARY_MIN_MONTH = DIARY_MIN_DATE.slice(0, 7);
 const GOMOKU_SIZE = 15;
 const GOMOKU_TURN_SECONDS = 20;
+const TETRIS_WIDTH = 10;
+const TETRIS_HEIGHT = 20;
+const TETRIS_DROP_MS = 650;
+const TETRIS_RANK_KEY = "suusuunian_tetris_rank_v1";
+const TETRIS_PIECES = {
+  I: [[1, 1, 1, 1]],
+  J: [
+    [1, 0, 0],
+    [1, 1, 1],
+  ],
+  L: [
+    [0, 0, 1],
+    [1, 1, 1],
+  ],
+  O: [
+    [1, 1],
+    [1, 1],
+  ],
+  S: [
+    [0, 1, 1],
+    [1, 1, 0],
+  ],
+  T: [
+    [0, 1, 0],
+    [1, 1, 1],
+  ],
+  Z: [
+    [1, 1, 0],
+    [0, 1, 1],
+  ],
+};
 const GOMOKU_BANTER = {
   tease: {
     label: "挑衅句",
@@ -113,6 +145,17 @@ const gomokuStatus = document.querySelector("#gomokuStatus");
 const gomokuBoard = document.querySelector("#gomokuBoard");
 const gomokuBanterBubble = document.querySelector("#gomokuBanterBubble");
 const gomokuBanterActions = document.querySelector("#gomokuBanterActions");
+const gomokuTabButton = document.querySelector("#gomokuTabButton");
+const tetrisTabButton = document.querySelector("#tetrisTabButton");
+const gomokuView = document.querySelector("#gomokuView");
+const tetrisView = document.querySelector("#tetrisView");
+const tetrisBoard = document.querySelector("#tetrisBoard");
+const tetrisStatus = document.querySelector("#tetrisStatus");
+const tetrisScore = document.querySelector("#tetrisScore");
+const tetrisPeerScore = document.querySelector("#tetrisPeerScore");
+const tetrisRanking = document.querySelector("#tetrisRanking");
+const tetrisModeButtons = Array.from(document.querySelectorAll("[data-tetris-mode]"));
+const tetrisControlButtons = Array.from(document.querySelectorAll("[data-tetris-action]"));
 const messageSearchButton = document.querySelector("#messageSearchButton");
 const messageSearchPanel = document.querySelector("#messageSearchPanel");
 const messageSearchForm = document.querySelector("#messageSearchForm");
@@ -206,6 +249,7 @@ let gomokuInviteTimer = null;
 let gomokuTurnTimer = null;
 let gomokuBanterTimer = null;
 let gomokuBanterCooldownUntil = 0;
+let tetrisTimer = null;
 const isIOSLike = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 const EMOJIS = [
   "😀",
@@ -3148,6 +3192,15 @@ function openGamePanel() {
 }
 
 function closeGamePanel() {
+  if (tetrisView && !tetrisView.classList.contains("hidden")) {
+    const game = ensureTetrisState();
+    if (game.running) {
+      finishTetrisGame("closed");
+    }
+    gamePanel?.classList.add("hidden");
+    return;
+  }
+
   const game = ensureGomokuState();
   game.closeConfirmVisible = true;
   renderGomoku();
@@ -3966,6 +4019,532 @@ function receiveGomokuUndoDeclined({ gameId }) {
   updateGomokuStatus("对方拒绝悔棋，继续当前棋局");
 }
 
+function createTetrisBoard() {
+  return Array.from({ length: TETRIS_HEIGHT }, () => Array(TETRIS_WIDTH).fill(""));
+}
+
+function createTetrisState(overrides = {}) {
+  return {
+    mode: "solo",
+    gameId: null,
+    role: "solo",
+    running: false,
+    ended: false,
+    board: createTetrisBoard(),
+    piece: null,
+    peerPiece: null,
+    score: 0,
+    peerScore: 0,
+    opponentName: "对方",
+    ...overrides,
+  };
+}
+
+function ensureTetrisState() {
+  if (!state.tetris) {
+    state.tetris = createTetrisState();
+  }
+
+  return state.tetris;
+}
+
+function switchGameTab(tab) {
+  const showTetris = tab === "tetris";
+  gomokuTabButton?.classList.toggle("active", !showTetris);
+  tetrisTabButton?.classList.toggle("active", showTetris);
+  gomokuView?.classList.toggle("hidden", showTetris);
+  tetrisView?.classList.toggle("hidden", !showTetris);
+
+  if (showTetris) {
+    renderTetris();
+  } else {
+    renderGomoku();
+  }
+}
+
+function getTetrisUserName(user = state.user) {
+  return user?.displayName || user?.username || user?.name || "我";
+}
+
+function getTetrisRanks() {
+  try {
+    const ranks = JSON.parse(localStorage.getItem(TETRIS_RANK_KEY) || "[]");
+    return Array.isArray(ranks) ? ranks : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveTetrisRank(score, mode, user = state.user) {
+  const cleanScore = Number(score || 0);
+  if (!Number.isFinite(cleanScore) || cleanScore <= 0) {
+    return;
+  }
+
+  const ranks = getTetrisRanks();
+  ranks.push({
+    name: getTetrisUserName(user),
+    score: Math.round(cleanScore),
+    mode,
+    at: Date.now(),
+  });
+
+  localStorage.setItem(
+    TETRIS_RANK_KEY,
+    JSON.stringify(ranks.sort((a, b) => b.score - a.score).slice(0, 10))
+  );
+  renderTetrisRanking();
+}
+
+function renderTetrisRanking() {
+  if (!tetrisRanking) {
+    return;
+  }
+
+  const ranks = getTetrisRanks();
+  if (!ranks.length) {
+    tetrisRanking.textContent = "暂无记录";
+    return;
+  }
+
+  tetrisRanking.innerHTML = "";
+  ranks.slice(0, 5).forEach((item, index) => {
+    const modeLabel = item.mode === "pk" ? "PK" : item.mode === "coop" ? "合作" : "单人";
+    const row = document.createElement("div");
+    row.textContent = `${index + 1}. ${item.name} ${item.score} · ${modeLabel}`;
+    tetrisRanking.append(row);
+  });
+}
+
+function randomTetrisType() {
+  const keys = Object.keys(TETRIS_PIECES);
+  return keys[Math.floor(Math.random() * keys.length)];
+}
+
+function cloneTetrisMatrix(matrix) {
+  return matrix.map((row) => [...row]);
+}
+
+function createTetrisPiece(owner = "self", type = randomTetrisType()) {
+  const matrix = cloneTetrisMatrix(TETRIS_PIECES[type]);
+  const coopLeft = owner === "p1" ? 1 : TETRIS_WIDTH - matrix[0].length - 1;
+  return {
+    type,
+    owner,
+    matrix,
+    x: owner === "p1" || owner === "p2" ? coopLeft : Math.floor((TETRIS_WIDTH - matrix[0].length) / 2),
+    y: 0,
+  };
+}
+
+function rotateTetrisMatrix(matrix) {
+  return matrix[0].map((_, col) => matrix.map((row) => row[col]).reverse());
+}
+
+function canPlaceTetrisPiece(board, piece, next = {}) {
+  const matrix = next.matrix || piece.matrix;
+  const x = Number.isInteger(next.x) ? next.x : piece.x;
+  const y = Number.isInteger(next.y) ? next.y : piece.y;
+
+  for (let row = 0; row < matrix.length; row += 1) {
+    for (let col = 0; col < matrix[row].length; col += 1) {
+      if (!matrix[row][col]) {
+        continue;
+      }
+
+      const boardRow = y + row;
+      const boardCol = x + col;
+      if (boardCol < 0 || boardCol >= TETRIS_WIDTH || boardRow >= TETRIS_HEIGHT) {
+        return false;
+      }
+
+      if (boardRow >= 0 && board[boardRow]?.[boardCol]) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+function getTetrisCells(piece) {
+  const cells = [];
+  if (!piece) {
+    return cells;
+  }
+
+  for (let row = 0; row < piece.matrix.length; row += 1) {
+    for (let col = 0; col < piece.matrix[row].length; col += 1) {
+      if (piece.matrix[row][col]) {
+        cells.push({ row: piece.y + row, col: piece.x + col, value: piece.owner === "p1" || piece.owner === "p2" ? piece.owner : piece.type });
+      }
+    }
+  }
+
+  return cells;
+}
+
+function mergeTetrisCells(board, cells) {
+  cells.forEach((cell) => {
+    if (cell.row >= 0 && cell.row < TETRIS_HEIGHT && cell.col >= 0 && cell.col < TETRIS_WIDTH) {
+      board[cell.row][cell.col] = cell.value || "I";
+    }
+  });
+}
+
+function getTetrisCollisionBoard(game) {
+  const board = game.board.map((row) => [...row]);
+
+  if (game.mode === "coop" && game.peerPiece) {
+    mergeTetrisCells(board, getTetrisCells(game.peerPiece));
+  }
+
+  return board;
+}
+
+function clearTetrisLines(board) {
+  let cleared = 0;
+  for (let row = board.length - 1; row >= 0; row -= 1) {
+    if (board[row].every(Boolean)) {
+      board.splice(row, 1);
+      board.unshift(Array(TETRIS_WIDTH).fill(""));
+      cleared += 1;
+      row += 1;
+    }
+  }
+
+  return cleared;
+}
+
+function getTetrisLineScore(lines) {
+  return [0, 100, 300, 500, 800][lines] || lines * 250;
+}
+
+function updateTetrisModeButtons(mode) {
+  tetrisModeButtons.forEach((button) => {
+    const active = button.dataset.tetrisMode === mode;
+    button.classList.toggle("ghost", !active);
+    button.disabled = ensureTetrisState().running && !active;
+  });
+}
+
+function setTetrisStatus(text) {
+  if (tetrisStatus) {
+    tetrisStatus.textContent = text;
+  }
+}
+
+function renderTetris() {
+  const game = ensureTetrisState();
+  updateTetrisModeButtons(game.mode);
+  renderTetrisRanking();
+
+  if (tetrisScore) {
+    tetrisScore.textContent = String(game.score);
+  }
+
+  if (tetrisPeerScore) {
+    tetrisPeerScore.textContent = game.mode === "solo" ? "不影响对方" : String(game.peerScore || 0);
+  }
+
+  if (!tetrisBoard) {
+    return;
+  }
+
+  const view = game.board.map((row) => [...row]);
+  [game.piece, game.peerPiece].forEach((piece) => {
+    getTetrisCells(piece).forEach((cell) => {
+      if (cell.row >= 0 && cell.row < TETRIS_HEIGHT && cell.col >= 0 && cell.col < TETRIS_WIDTH) {
+        view[cell.row][cell.col] = cell.value;
+      }
+    });
+  });
+
+  tetrisBoard.innerHTML = "";
+  view.forEach((row) => {
+    row.forEach((value) => {
+      const cell = document.createElement("span");
+      cell.className = `tetris-cell ${value ? `fill ${value}` : ""}`;
+      tetrisBoard.append(cell);
+    });
+  });
+}
+
+function startTetrisLoop() {
+  clearInterval(tetrisTimer);
+  tetrisTimer = setInterval(tickTetris, TETRIS_DROP_MS);
+}
+
+function stopTetrisLoop() {
+  clearInterval(tetrisTimer);
+  tetrisTimer = null;
+}
+
+function startTetrisMode(mode, options = {}) {
+  const remote = Boolean(options.remote);
+  const gameId = options.gameId || `${Date.now()}-${state.user?.id || "tetris"}`;
+  const role = mode === "coop" ? options.role || (remote ? "p2" : "p1") : mode === "pk" ? (remote ? "p2" : "p1") : "solo";
+  const pieceOwner = mode === "coop" ? role : "self";
+
+  state.tetris = createTetrisState({
+    mode,
+    gameId,
+    role,
+    running: true,
+    board: createTetrisBoard(),
+    piece: createTetrisPiece(pieceOwner),
+    peerPiece: null,
+    opponentName: options.from?.displayName || "对方",
+  });
+
+  switchGameTab("tetris");
+  setTetrisStatus(getTetrisModeStatus(state.tetris, remote));
+  startTetrisLoop();
+  renderTetris();
+
+  if (!remote && mode !== "solo") {
+    state.socket?.emit("game:tetris-start", { gameId, mode });
+  }
+}
+
+function getTetrisModeStatus(game, remote = false) {
+  if (game.mode === "solo") return "单人模式：只影响自己的画面，结束后进入历史最高排名";
+  if (game.mode === "pk") return remote ? "对方发起双人PK，各自独立棋盘，谁先失败谁输" : "双人PK已开始，各自独立棋盘，谁先失败谁输";
+  return remote ? "对方发起合作模式，共享棋盘，你控制右上角方块" : "合作模式已开始，共享棋盘，你控制左上角方块";
+}
+
+function moveTetrisPiece(dx, dy) {
+  const game = ensureTetrisState();
+  if (!game.running || !game.piece) {
+    return false;
+  }
+
+  const next = { x: game.piece.x + dx, y: game.piece.y + dy };
+  if (!canPlaceTetrisPiece(getTetrisCollisionBoard(game), game.piece, next)) {
+    return false;
+  }
+
+  game.piece.x = next.x;
+  game.piece.y = next.y;
+  broadcastTetrisPiece();
+  renderTetris();
+  return true;
+}
+
+function rotateTetrisPiece() {
+  const game = ensureTetrisState();
+  if (!game.running || !game.piece) {
+    return;
+  }
+
+  const matrix = rotateTetrisMatrix(game.piece.matrix);
+  if (!canPlaceTetrisPiece(getTetrisCollisionBoard(game), game.piece, { matrix })) {
+    return;
+  }
+
+  game.piece.matrix = matrix;
+  broadcastTetrisPiece();
+  renderTetris();
+}
+
+function tickTetris() {
+  const game = ensureTetrisState();
+  if (!game.running) {
+    stopTetrisLoop();
+    return;
+  }
+
+  if (!moveTetrisPiece(0, 1)) {
+    lockTetrisPiece();
+  }
+}
+
+function lockTetrisPiece() {
+  const game = ensureTetrisState();
+  if (!game.piece) {
+    return;
+  }
+
+  const cells = getTetrisCells(game.piece);
+  mergeTetrisCells(game.board, cells);
+  const cleared = clearTetrisLines(game.board);
+  const delta = getTetrisLineScore(cleared) + 10;
+  game.score += delta;
+
+  if (game.mode === "coop") {
+    state.socket?.emit("game:tetris-lock", {
+      gameId: game.gameId,
+      role: game.role,
+      cells,
+      score: game.score,
+    });
+  }
+
+  game.piece = createTetrisPiece(game.mode === "coop" ? game.role : "self");
+  if (!canPlaceTetrisPiece(getTetrisCollisionBoard(game), game.piece)) {
+    finishTetrisGame("dead");
+    return;
+  }
+
+  broadcastTetrisState();
+  renderTetris();
+}
+
+function broadcastTetrisPiece() {
+  const game = ensureTetrisState();
+  if (!state.socket?.connected || !game.running || game.mode === "solo") {
+    return;
+  }
+
+  state.socket.emit("game:tetris-input", {
+    gameId: game.gameId,
+    mode: game.mode,
+    role: game.role,
+    piece: game.piece,
+    score: game.score,
+  });
+}
+
+function broadcastTetrisState() {
+  const game = ensureTetrisState();
+  if (!state.socket?.connected || !game.running || game.mode === "solo") {
+    return;
+  }
+
+  state.socket.emit("game:tetris-state", {
+    gameId: game.gameId,
+    mode: game.mode,
+    role: game.role,
+    score: game.score,
+  });
+}
+
+function finishTetrisGame(reason = "dead", options = {}) {
+  const game = ensureTetrisState();
+  if (game.ended) {
+    return;
+  }
+
+  game.running = false;
+  game.ended = true;
+  stopTetrisLoop();
+  saveTetrisRank(game.score, game.mode);
+
+  if (game.mode === "pk") {
+    setTetrisStatus(reason === "peer-dead" ? "对方先失败，你赢了" : "你先失败，对方赢了");
+  } else if (game.mode === "coop") {
+    setTetrisStatus(`合作结束，共同积分 ${game.score}`);
+  } else {
+    setTetrisStatus(`游戏结束，得分 ${game.score}`);
+  }
+
+  renderTetris();
+
+  if (!options.remote && game.mode !== "solo") {
+    state.socket?.emit("game:tetris-over", {
+      gameId: game.gameId,
+      mode: game.mode,
+      score: game.score,
+      reason,
+    });
+  }
+
+  if (!options.remote) {
+    state.socket?.emit("game:tetris-score", {
+      mode: game.mode,
+      score: game.score,
+    });
+  }
+}
+
+function receiveTetrisStart({ from, gameId, mode }) {
+  if (from?.id === state.user?.id || !["pk", "coop"].includes(mode)) {
+    return;
+  }
+
+  gamePanel?.classList.remove("hidden");
+  startTetrisMode(mode, { remote: true, from, gameId, role: mode === "coop" ? "p2" : "p2" });
+
+  if ("Notification" in window && Notification.permission === "granted") {
+    new Notification("碎碎念收件箱", {
+      body: mode === "pk" ? "收到俄罗斯方块PK邀请" : "收到俄罗斯方块合作邀请",
+      tag: "private-chat-tetris",
+    });
+  }
+}
+
+function receiveTetrisInput({ from, gameId, mode, role, piece, score }) {
+  const game = ensureTetrisState();
+  if (from?.id === state.user?.id || !game.running || game.gameId !== gameId || game.mode !== mode) {
+    return;
+  }
+
+  game.peerScore = Number(score || 0);
+  if (mode === "coop" && piece && role !== game.role) {
+    game.peerPiece = piece;
+  }
+
+  renderTetris();
+}
+
+function receiveTetrisLock({ from, gameId, role, cells, score }) {
+  const game = ensureTetrisState();
+  if (from?.id === state.user?.id || !game.running || game.mode !== "coop" || game.gameId !== gameId || role === game.role) {
+    return;
+  }
+
+  mergeTetrisCells(game.board, Array.isArray(cells) ? cells : []);
+  const cleared = clearTetrisLines(game.board);
+  game.peerScore = Number(score || game.peerScore || 0);
+  game.score += getTetrisLineScore(cleared);
+  game.peerPiece = null;
+  renderTetris();
+}
+
+function receiveTetrisState({ from, gameId, mode, score }) {
+  const game = ensureTetrisState();
+  if (from?.id === state.user?.id || !game.gameId || game.gameId !== gameId || game.mode !== mode) {
+    return;
+  }
+
+  game.peerScore = Number(score || 0);
+  renderTetris();
+}
+
+function receiveTetrisOver({ from, gameId, mode, score }) {
+  const game = ensureTetrisState();
+  if (from?.id === state.user?.id || !game.gameId || game.gameId !== gameId || game.mode !== mode) {
+    return;
+  }
+
+  game.peerScore = Number(score || 0);
+  if (mode === "pk") {
+    finishTetrisGame("peer-dead", { remote: true });
+  } else if (mode === "coop") {
+    game.running = false;
+    game.ended = true;
+    stopTetrisLoop();
+    saveTetrisRank(Math.max(game.score, game.peerScore), "coop", from);
+    setTetrisStatus(`合作结束，共同积分 ${Math.max(game.score, game.peerScore)}`);
+    renderTetris();
+  }
+}
+
+function receiveTetrisScore({ from, mode, score }) {
+  if (from?.id === state.user?.id) {
+    return;
+  }
+
+  saveTetrisRank(score, mode, from);
+}
+
+function handleTetrisAction(action) {
+  if (action === "left") moveTetrisPiece(-1, 0);
+  if (action === "right") moveTetrisPiece(1, 0);
+  if (action === "down") tickTetris();
+  if (action === "rotate") rotateTetrisPiece();
+}
+
 function scrollToMessage(messageId) {
   const item = messagesEl.querySelector(`[data-message-id="${messageId}"]`);
   if (!item) {
@@ -4075,6 +4654,9 @@ function connectSocket() {
     if (state.gomoku) {
       renderGomoku();
     }
+    if (state.tetris) {
+      renderTetris();
+    }
   });
 
   state.socket.on("message:new", (message) => {
@@ -4113,6 +4695,12 @@ function connectSocket() {
   state.socket.on("game:undo-request", receiveGomokuUndoRequest);
   state.socket.on("game:undo-accept", receiveGomokuUndoAccepted);
   state.socket.on("game:undo-decline", receiveGomokuUndoDeclined);
+  state.socket.on("game:tetris-start", receiveTetrisStart);
+  state.socket.on("game:tetris-input", receiveTetrisInput);
+  state.socket.on("game:tetris-lock", receiveTetrisLock);
+  state.socket.on("game:tetris-state", receiveTetrisState);
+  state.socket.on("game:tetris-over", receiveTetrisOver);
+  state.socket.on("game:tetris-score", receiveTetrisScore);
   state.socket.on("call:offer", receiveCall);
   state.socket.on("call:answer", applyAnswer);
   state.socket.on("call:ice", applyIce);
@@ -4427,11 +5015,35 @@ gameButton?.addEventListener("click", openGamePanel);
 closeGameButton?.addEventListener("click", closeGamePanel);
 cancelCloseGameButton?.addEventListener("click", cancelCloseGamePanel);
 confirmCloseGameButton?.addEventListener("click", confirmCloseGamePanel);
+gomokuTabButton?.addEventListener("click", () => switchGameTab("gomoku"));
+tetrisTabButton?.addEventListener("click", () => switchGameTab("tetris"));
 inviteGomokuButton?.addEventListener("click", inviteGomokuGame);
 acceptGomokuButton?.addEventListener("click", acceptGomokuInvite);
 declineGomokuButton?.addEventListener("click", declineGomokuInvite);
 undoGomokuButton?.addEventListener("click", requestGomokuUndo);
 resetGomokuButton?.addEventListener("click", requestGomokuReset);
+tetrisModeButtons.forEach((button) => {
+  button.addEventListener("click", () => startTetrisMode(button.dataset.tetrisMode || "solo"));
+});
+tetrisControlButtons.forEach((button) => {
+  button.addEventListener("click", () => handleTetrisAction(button.dataset.tetrisAction));
+});
+window.addEventListener("keydown", (event) => {
+  if (!tetrisView || tetrisView.classList.contains("hidden")) {
+    return;
+  }
+
+  const keys = ["ArrowLeft", "ArrowRight", "ArrowDown", "ArrowUp", " "];
+  if (!keys.includes(event.key)) {
+    return;
+  }
+
+  event.preventDefault();
+  if (event.key === "ArrowLeft") handleTetrisAction("left");
+  if (event.key === "ArrowRight") handleTetrisAction("right");
+  if (event.key === "ArrowDown") handleTetrisAction("down");
+  if (event.key === "ArrowUp" || event.key === " ") handleTetrisAction("rotate");
+});
 prevDiaryMonthButton?.addEventListener("click", () => {
   state.diaryVisibleMonth = shiftMonth(state.diaryVisibleMonth, -1);
   syncDiarySelectedDateToMonth();

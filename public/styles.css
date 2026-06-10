@@ -1121,6 +1121,18 @@ button.attachment {
   color: #fff;
 }
 
+.gomoku-view,
+.tetris-view {
+  display: grid;
+  gap: 10px;
+  min-height: 0;
+}
+
+.gomoku-view.hidden,
+.tetris-view.hidden {
+  display: none;
+}
+
 .gomoku-invite,
 .gomoku-close-confirm,
 .gomoku-toolbar {
@@ -1366,6 +1378,144 @@ button.attachment {
   width: 18%;
   background: rgba(92, 56, 16, 0.78);
   box-shadow: none;
+}
+
+.tetris-toolbar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tetris-toolbar button {
+  height: 34px;
+  padding: 0 8px;
+  font-size: 13px;
+}
+
+.tetris-status {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+  padding: 8px 10px;
+}
+
+.tetris-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  align-items: start;
+  gap: 12px;
+  min-height: 0;
+}
+
+.tetris-board-wrap {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tetris-board {
+  --tetris-cell: min(22px, calc((100vw - 190px) / 10));
+  display: grid;
+  grid-template-columns: repeat(10, var(--tetris-cell));
+  grid-template-rows: repeat(20, var(--tetris-cell));
+  border: 2px solid #1f2937;
+  border-radius: 8px;
+  background: #0f172a;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+.tetris-cell {
+  width: var(--tetris-cell);
+  height: var(--tetris-cell);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(15, 23, 42, 0.92);
+}
+
+.tetris-cell.fill {
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.tetris-cell.I { background: #22d3ee; }
+.tetris-cell.J { background: #2563eb; }
+.tetris-cell.L { background: #f97316; }
+.tetris-cell.O { background: #facc15; }
+.tetris-cell.S { background: #22c55e; }
+.tetris-cell.T { background: #a855f7; }
+.tetris-cell.Z { background: #ef4444; }
+.tetris-cell.p1 { background: #38bdf8; }
+.tetris-cell.p2 { background: #fb7185; }
+
+.tetris-controls {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  width: min(100%, 300px);
+}
+
+.tetris-controls button {
+  height: 36px;
+  padding: 0;
+  font-size: 13px;
+}
+
+.tetris-side {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tetris-score-card,
+.tetris-rank {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  padding: 9px;
+}
+
+.tetris-score-card strong,
+.tetris-rank strong {
+  font-size: 12px;
+}
+
+.tetris-score-card span {
+  color: var(--accent);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.tetris-rank div {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+@media (max-width: 560px) {
+  .tetris-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .tetris-board {
+    --tetris-cell: min(21px, calc((100vw - 92px) / 10));
+  }
+
+  .tetris-side {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tetris-rank {
+    grid-column: 1 / -1;
+  }
 }
 
 .diary-calendar {
