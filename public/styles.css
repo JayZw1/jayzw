@@ -211,8 +211,22 @@ button:hover {
   min-width: 0;
 }
 
+.title-button-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .diary-button {
   width: 74px;
+  height: 24px;
+  padding: 0;
+  font-size: 11px;
+}
+
+.game-button {
+  width: 46px;
   height: 24px;
   padding: 0;
   font-size: 11px;
@@ -937,6 +951,7 @@ button.attachment {
 
 .important-days-panel,
 .diary-panel,
+.game-panel,
 .message-search-panel,
 .storage-panel,
 .other-feature-panel,
@@ -958,6 +973,7 @@ button.attachment {
 
 .important-days-card,
 .diary-card,
+.game-card,
 .message-search-card,
 .storage-card,
 .other-feature-card,
@@ -998,6 +1014,13 @@ button.attachment {
 
 .diary-card {
   width: min(100%, 460px);
+  grid-template-rows: auto auto auto auto minmax(0, 1fr);
+  max-height: calc(var(--app-height, 100dvh) - 36px);
+  min-height: 0;
+}
+
+.game-card {
+  width: min(100%, 520px);
   grid-template-rows: auto auto auto auto minmax(0, 1fr);
   max-height: calc(var(--app-height, 100dvh) - 36px);
   min-height: 0;
@@ -1059,6 +1082,7 @@ button.attachment {
 
 .important-days-list,
 .diary-list,
+.gomoku-status-list,
 .message-search-results,
 .storage-list,
 .other-feature-list,
@@ -1078,6 +1102,146 @@ button.attachment {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-right: 4px;
+}
+
+.game-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.game-tabs button {
+  width: 72px;
+  height: 32px;
+  padding: 0;
+  font-size: 13px;
+}
+
+.game-tabs button.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.gomoku-invite,
+.gomoku-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gomoku-invite {
+  flex-wrap: wrap;
+}
+
+.gomoku-invite button {
+  height: 34px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.gomoku-toolbar {
+  justify-content: space-between;
+}
+
+.gomoku-toolbar span {
+  min-width: 0;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gomoku-toolbar button {
+  width: 56px;
+  height: 32px;
+  padding: 0;
+  flex: 0 0 auto;
+  font-size: 13px;
+}
+
+.gomoku-board {
+  --gomoku-cell: min(27px, calc((100vw - 82px) / 15));
+  display: grid;
+  grid-template-columns: repeat(15, var(--gomoku-cell));
+  grid-template-rows: repeat(15, var(--gomoku-cell));
+  justify-content: center;
+  justify-self: center;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 0;
+  border: 1px solid #c0842f;
+  border-radius: 8px;
+  background: #f2c879;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+  overflow: hidden;
+  padding: 8px;
+  touch-action: manipulation;
+}
+
+.gomoku-cell {
+  position: relative;
+  width: var(--gomoku-cell);
+  height: var(--gomoku-cell);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: transparent;
+  padding: 0;
+}
+
+.gomoku-cell:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.gomoku-cell:disabled {
+  cursor: default;
+}
+
+.gomoku-cell::before,
+.gomoku-cell::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  background: rgba(92, 56, 16, 0.62);
+  pointer-events: none;
+}
+
+.gomoku-cell::before {
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+}
+
+.gomoku-cell::after {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+}
+
+.gomoku-cell span {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 50%;
+  width: 72%;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.gomoku-cell.black span {
+  background: radial-gradient(circle at 35% 30%, #4b5563, #020617 72%);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.35);
+}
+
+.gomoku-cell.white span {
+  border: 1px solid #cbd5e1;
+  background: radial-gradient(circle at 35% 30%, #fff, #e5e7eb 74%);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
 }
 
 .diary-calendar {
@@ -1835,6 +1999,12 @@ button.attachment {
     font-size: 10px;
   }
 
+  .game-button {
+    width: 34px;
+    height: 25px;
+    font-size: 10px;
+  }
+
   .title-row {
     display: grid;
     grid-template-areas:
@@ -1850,6 +2020,10 @@ button.attachment {
   .title-stack {
     grid-area: title;
     align-self: start;
+    gap: 4px;
+  }
+
+  .title-button-row {
     gap: 4px;
   }
 
@@ -2002,6 +2176,12 @@ button.attachment {
 
   .title-row .diary-button {
     width: 52px;
+    height: 25px;
+    font-size: 10px;
+  }
+
+  .title-row .game-button {
+    width: 34px;
     height: 25px;
     font-size: 10px;
   }
@@ -2179,6 +2359,32 @@ button.attachment {
     width: calc(100% - 20px);
     max-height: calc(var(--app-height, 100dvh) - max(var(--keyboard-bottom, 0px), env(safe-area-inset-bottom)) - 20px);
     overflow-y: auto;
+  }
+
+  .game-panel {
+    padding: 10px;
+  }
+
+  .game-card {
+    width: calc(100% - 20px);
+    max-height: calc(var(--app-height, 100dvh) - 20px);
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .gomoku-board {
+    --gomoku-cell: min(21px, calc((100vw - 58px) / 15));
+    padding: 6px;
+  }
+
+  .gomoku-toolbar span {
+    font-size: 12px;
+  }
+
+  .gomoku-invite button,
+  .gomoku-toolbar button {
+    height: 30px;
+    font-size: 12px;
   }
 
   .diary-calendar {

@@ -15,11 +15,13 @@ const state = {
   expressStatus: { date: todayInputValue(), hasExpress: false },
   diarySelectedDate: todayInputValue(),
   diaryVisibleMonth: todayInputValue().slice(0, 7),
+  gomoku: null,
   bottomSettleUntil: 0,
 };
 
 const DIARY_MIN_DATE = "2025-01-01";
 const DIARY_MIN_MONTH = DIARY_MIN_DATE.slice(0, 7);
+const GOMOKU_SIZE = 15;
 
 const loginPanel = document.querySelector("#loginPanel");
 const chatPanel = document.querySelector("#chatPanel");
@@ -74,6 +76,15 @@ const diaryMonthSelect = document.querySelector("#diaryMonthSelect");
 const diarySelectedDate = document.querySelector("#diarySelectedDate");
 const prevDiaryMonthButton = document.querySelector("#prevDiaryMonthButton");
 const nextDiaryMonthButton = document.querySelector("#nextDiaryMonthButton");
+const gameButton = document.querySelector("#gameButton");
+const gamePanel = document.querySelector("#gamePanel");
+const closeGameButton = document.querySelector("#closeGameButton");
+const inviteGomokuButton = document.querySelector("#inviteGomokuButton");
+const acceptGomokuButton = document.querySelector("#acceptGomokuButton");
+const declineGomokuButton = document.querySelector("#declineGomokuButton");
+const resetGomokuButton = document.querySelector("#resetGomokuButton");
+const gomokuStatus = document.querySelector("#gomokuStatus");
+const gomokuBoard = document.querySelector("#gomokuBoard");
 const messageSearchButton = document.querySelector("#messageSearchButton");
 const messageSearchPanel = document.querySelector("#messageSearchPanel");
 const messageSearchForm = document.querySelector("#messageSearchForm");
@@ -3063,6 +3074,348 @@ function getMediaErrorText(error, mode) {
   return "权限弹窗没有打开时，请刷新页面后再点一次通话";
 }
 
+function createGomokuState(overrides = {}) {
+  return {
+    size: GOMOKU_SIZE,
+    board: Array.from({ length: GOMOKU_SIZE }, () => Array(GOMOKU_SIZE).fill(null)),
+    gameId: null,
+    active: false,
+    pendingIncoming: null,
+    pendingOutgoing: false,
+    myColor: null,
+    current: "black",
+    winner: null,
+    draw: false,
+    opponentName: "对方",
+    ...overrides,
+  };
+}
+
+function ensureGomokuState() {
+  if (!state.gomoku) {
+    state.gomoku = createGomokuState();
+  }
+
+  return state.gomoku;
+}
+
+function openGamePanel() {
+  ensureGomokuState();
+  gamePanel?.classList.remove("hidden");
+  renderGomoku();
+}
+
+function closeGamePanel() {
+  gamePanel?.classList.add("hidden");
+}
+
+function gomokuColorName(color) {
+  return color === "black" ? "黑棋" : "白棋";
+}
+
+function updateGomokuStatus(text) {
+  if (gomokuStatus) {
+    gomokuStatus.textContent = text;
+  }
+}
+
+function renderGomokuInviteControls(game) {
+  if (!inviteGomokuButton || !acceptGomokuButton || !declineGomokuButton || !resetGomokuButton) {
+    return;
+  }
+
+  const hasIncoming = Boolean(game.pendingIncoming);
+  inviteGomokuButton.classList.toggle("hidden", hasIncoming || game.pendingOutgoing || game.active);
+  acceptGomokuButton.classList.toggle("hidden", !hasIncoming);
+  declineGomokuButton.classList.toggle("hidden", !hasIncoming);
+  resetGomokuButton.disabled = !game.active;
+}
+
+function getGomokuStatusText(game) {
+  if (game.pendingIncoming) {
+    return `${game.pendingIncoming.from.displayName || "对方"} 邀请你五子棋`;
+  }
+
+  if (game.pendingOutgoing) {
+    return "已发送邀请，等待对方接受";
+  }
+
+  if (!game.active) {
+    return "点击邀请对方开始五子棋";
+  }
+
+  if (game.winner) {
+    return `${gomokuColorName(game.winner)}赢了`;
+  }
+
+  if (game.draw) {
+    return "平局";
+  }
+
+  return game.current === game.myColor
+    ? `轮到你（${gomokuColorName(game.current)}）`
+    : `轮到${game.opponentName}（${gomokuColorName(game.current)}）`;
+}
+
+function renderGomoku() {
+  const game = ensureGomokuState();
+  renderGomokuInviteControls(game);
+  updateGomokuStatus(getGomokuStatusText(game));
+
+  if (!gomokuBoard) {
+    return;
+  }
+
+  gomokuBoard.innerHTML = "";
+
+  for (let row = 0; row < game.size; row += 1) {
+    for (let col = 0; col < game.size; col += 1) {
+      const color = game.board[row][col];
+      const cell = document.createElement("button");
+      cell.type = "button";
+      cell.className = `gomoku-cell ${color || ""}`;
+      cell.setAttribute("aria-label", `${row + 1}行${col + 1}列${color ? gomokuColorName(color) : "空位"}`);
+      cell.disabled = !canPlaceGomokuStone(game, row, col);
+      cell.addEventListener("click", () => placeGomokuStone(row, col));
+      if (color) {
+        cell.append(document.createElement("span"));
+      }
+      gomokuBoard.append(cell);
+    }
+  }
+}
+
+function canPlaceGomokuStone(game, row, col) {
+  return (
+    game.active &&
+    !game.winner &&
+    !game.draw &&
+    game.myColor === game.current &&
+    !game.board[row]?.[col]
+  );
+}
+
+function countGomokuLine(board, row, col, color, rowStep, colStep) {
+  let count = 0;
+  let nextRow = row + rowStep;
+  let nextCol = col + colStep;
+
+  while (board[nextRow]?.[nextCol] === color) {
+    count += 1;
+    nextRow += rowStep;
+    nextCol += colStep;
+  }
+
+  return count;
+}
+
+function hasGomokuWinner(board, row, col, color) {
+  return [
+    [1, 0],
+    [0, 1],
+    [1, 1],
+    [1, -1],
+  ].some(([rowStep, colStep]) => {
+    const total =
+      1 +
+      countGomokuLine(board, row, col, color, rowStep, colStep) +
+      countGomokuLine(board, row, col, color, -rowStep, -colStep);
+    return total >= 5;
+  });
+}
+
+function isGomokuBoardFull(board) {
+  return board.every((row) => row.every(Boolean));
+}
+
+function applyGomokuMove({ row, col, color }) {
+  const game = ensureGomokuState();
+
+  if (!game.active || game.winner || game.draw || !["black", "white"].includes(color)) {
+    return false;
+  }
+
+  if (!Number.isInteger(row) || !Number.isInteger(col) || row < 0 || col < 0 || row >= game.size || col >= game.size) {
+    return false;
+  }
+
+  if (game.board[row][col] || game.current !== color) {
+    return false;
+  }
+
+  game.board[row][col] = color;
+  if (hasGomokuWinner(game.board, row, col, color)) {
+    game.winner = color;
+  } else if (isGomokuBoardFull(game.board)) {
+    game.draw = true;
+  } else {
+    game.current = color === "black" ? "white" : "black";
+  }
+
+  renderGomoku();
+  return true;
+}
+
+function placeGomokuStone(row, col) {
+  const game = ensureGomokuState();
+
+  if (!canPlaceGomokuStone(game, row, col)) {
+    return;
+  }
+
+  const color = game.myColor;
+  if (!applyGomokuMove({ row, col, color })) {
+    return;
+  }
+
+  state.socket?.emit("game:move", {
+    gameId: game.gameId,
+    row,
+    col,
+    color,
+  });
+}
+
+function inviteGomokuGame() {
+  if (!state.socket?.connected) {
+    updateGomokuStatus("实时连接未恢复，暂时不能邀请");
+    return;
+  }
+
+  const gameId = `${Date.now()}-${state.user?.id || "gomoku"}`;
+  state.gomoku = createGomokuState({
+    gameId,
+    pendingOutgoing: true,
+    myColor: "black",
+    opponentName: "对方",
+  });
+  gamePanel?.classList.remove("hidden");
+  renderGomoku();
+  state.socket.emit("game:invite", { gameId, game: "gomoku" });
+}
+
+function receiveGomokuInvite({ from, gameId }) {
+  if (!gameId || from?.id === state.user?.id) {
+    return;
+  }
+
+  state.gomoku = createGomokuState({
+    gameId,
+    pendingIncoming: { from },
+    myColor: "white",
+    opponentName: from?.displayName || "对方",
+  });
+  gamePanel?.classList.remove("hidden");
+  renderGomoku();
+
+  if ("Notification" in window && Notification.permission === "granted") {
+    new Notification("碎碎念收件箱", {
+      body: "收到五子棋对战邀请",
+      tag: "private-chat-game",
+    });
+  }
+}
+
+function acceptGomokuInvite() {
+  const game = ensureGomokuState();
+
+  if (!game.pendingIncoming || !state.socket?.connected) {
+    return;
+  }
+
+  game.active = true;
+  game.pendingIncoming = null;
+  game.pendingOutgoing = false;
+  game.current = "black";
+  game.winner = null;
+  game.draw = false;
+  state.socket.emit("game:accept", { gameId: game.gameId, game: "gomoku" });
+  renderGomoku();
+}
+
+function declineGomokuInvite() {
+  const game = ensureGomokuState();
+  const gameId = game.gameId;
+
+  if (game.pendingIncoming && state.socket?.connected) {
+    state.socket.emit("game:decline", { gameId, game: "gomoku" });
+  }
+
+  state.gomoku = createGomokuState();
+  renderGomoku();
+}
+
+function receiveGomokuAccepted({ from, gameId }) {
+  const game = ensureGomokuState();
+
+  if (!gameId || game.gameId !== gameId || !game.pendingOutgoing) {
+    return;
+  }
+
+  game.active = true;
+  game.pendingOutgoing = false;
+  game.opponentName = from?.displayName || "对方";
+  game.current = "black";
+  game.winner = null;
+  game.draw = false;
+  renderGomoku();
+}
+
+function receiveGomokuDeclined({ gameId }) {
+  const game = ensureGomokuState();
+
+  if (game.gameId !== gameId) {
+    return;
+  }
+
+  state.gomoku = createGomokuState();
+  renderGomoku();
+  updateGomokuStatus("对方已拒绝五子棋邀请");
+}
+
+function receiveGomokuMove(payload) {
+  const game = ensureGomokuState();
+
+  if (!payload?.gameId || payload.gameId !== game.gameId || payload.color === game.myColor) {
+    return;
+  }
+
+  applyGomokuMove(payload);
+}
+
+function resetGomokuGame(shouldEmit = true) {
+  const current = ensureGomokuState();
+
+  if (!current.active) {
+    return;
+  }
+
+  state.gomoku = createGomokuState({
+    gameId: current.gameId,
+    active: true,
+    myColor: current.myColor,
+    opponentName: current.opponentName,
+    current: "black",
+  });
+
+  renderGomoku();
+
+  if (shouldEmit) {
+    state.socket?.emit("game:reset", { gameId: state.gomoku.gameId, game: "gomoku" });
+  }
+}
+
+function receiveGomokuReset({ gameId }) {
+  const game = ensureGomokuState();
+
+  if (!gameId || game.gameId !== gameId || !game.active) {
+    return;
+  }
+
+  resetGomokuGame(false);
+  updateGomokuStatus("对方已重开，黑棋先手");
+}
+
 function scrollToMessage(messageId) {
   const item = messagesEl.querySelector(`[data-message-id="${messageId}"]`);
   if (!item) {
@@ -3192,6 +3545,11 @@ function connectSocket() {
   state.socket.on("schedule:deleted", removeScheduleItem);
   state.socket.on("diary:saved", upsertDiaryEntry);
   state.socket.on("diary:deleted", ({ id }) => removeDiaryEntry(id));
+  state.socket.on("game:invite", receiveGomokuInvite);
+  state.socket.on("game:accept", receiveGomokuAccepted);
+  state.socket.on("game:decline", receiveGomokuDeclined);
+  state.socket.on("game:move", receiveGomokuMove);
+  state.socket.on("game:reset", receiveGomokuReset);
   state.socket.on("call:offer", receiveCall);
   state.socket.on("call:answer", applyAnswer);
   state.socket.on("call:ice", applyIce);
@@ -3410,6 +3768,9 @@ document.addEventListener("click", (event) => {
   if (diaryPanel && !diaryPanel.classList.contains("hidden") && event.target === diaryPanel) {
     closeDiaryPanel();
   }
+  if (gamePanel && !gamePanel.classList.contains("hidden") && event.target === gamePanel) {
+    closeGamePanel();
+  }
 });
 
 attachButton.addEventListener("click", () => {
@@ -3502,6 +3863,12 @@ closeWeatherButton?.addEventListener("click", closeWeatherPanel);
 diaryButton?.addEventListener("click", openDiaryPanel);
 diaryForm?.addEventListener("submit", saveDiaryEntry);
 closeDiaryButton?.addEventListener("click", closeDiaryPanel);
+gameButton?.addEventListener("click", openGamePanel);
+closeGameButton?.addEventListener("click", closeGamePanel);
+inviteGomokuButton?.addEventListener("click", inviteGomokuGame);
+acceptGomokuButton?.addEventListener("click", acceptGomokuInvite);
+declineGomokuButton?.addEventListener("click", declineGomokuInvite);
+resetGomokuButton?.addEventListener("click", () => resetGomokuGame(true));
 prevDiaryMonthButton?.addEventListener("click", () => {
   state.diaryVisibleMonth = shiftMonth(state.diaryVisibleMonth, -1);
   syncDiarySelectedDateToMonth();

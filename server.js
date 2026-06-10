@@ -1160,6 +1160,57 @@ io.on("connection", (socket) => {
     socket.broadcast.emit("typing:stop", { user: publicUser(socket.user) });
   });
 
+  socket.on("game:invite", (payload) => {
+    socket.broadcast.emit("game:invite", {
+      from: publicUser(socket.user),
+      game: payload?.game === "gomoku" ? "gomoku" : "gomoku",
+      gameId: String(payload?.gameId || ""),
+    });
+  });
+
+  socket.on("game:accept", (payload) => {
+    socket.broadcast.emit("game:accept", {
+      from: publicUser(socket.user),
+      game: "gomoku",
+      gameId: String(payload?.gameId || ""),
+    });
+  });
+
+  socket.on("game:decline", (payload) => {
+    socket.broadcast.emit("game:decline", {
+      from: publicUser(socket.user),
+      game: "gomoku",
+      gameId: String(payload?.gameId || ""),
+    });
+  });
+
+  socket.on("game:move", (payload) => {
+    const row = Number(payload?.row);
+    const col = Number(payload?.col);
+    const color = payload?.color === "white" ? "white" : "black";
+
+    if (!Number.isInteger(row) || !Number.isInteger(col) || row < 0 || col < 0 || row >= 15 || col >= 15) {
+      return;
+    }
+
+    socket.broadcast.emit("game:move", {
+      from: publicUser(socket.user),
+      game: "gomoku",
+      gameId: String(payload?.gameId || ""),
+      row,
+      col,
+      color,
+    });
+  });
+
+  socket.on("game:reset", (payload) => {
+    socket.broadcast.emit("game:reset", {
+      from: publicUser(socket.user),
+      game: "gomoku",
+      gameId: String(payload?.gameId || ""),
+    });
+  });
+
   socket.on("call:offer", (payload) => {
     socket.broadcast.emit("call:offer", {
       from: publicUser(socket.user),
